@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Bookmark } from 'lucide-react-native';
+import { ArrowLeft, Bookmark, BookmarkCheck } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -29,39 +29,40 @@ export default function Dzikir() {
     const [mainTab, setMainTab] = useState<'harian' | 'duha'>('harian');
     const [subTab, setSubTab] = useState<'semua' | 'pagi' | 'sore' | 'solat'>('semua');
 
+    // Bookmark state
+    const [savedItems, setSavedItems] = useState<Set<string>>(new Set());
+    const [showSaved, setShowSaved] = useState(false);
+
+    // Buat unique key untuk setiap dzikir item
+    const getDzikirKey = (item: DzikirItem) => `${item.type}-${item.arab.slice(0, 30)}`;
+
+    const toggleSave = (item: DzikirItem) => {
+        const key = getDzikirKey(item);
+        setSavedItems(prev => {
+            const next = new Set(prev);
+            if (next.has(key)) {
+                next.delete(key);
+            } else {
+                next.add(key);
+            }
+            return next;
+        });
+    };
+
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const apiUrl = 'https://muslim-api-three.vercel.app/v1/dzikir';
-                const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`, {
-                    headers: {
-                        'Cache-Control': 'no-cache'
-                    }
-                });
+                const res = await fetch('https://muslim-api-three.vercel.app/v1/dzikir');
+                const json = await res.json();
 
-                const proxyJson = await res.json();
-
-                // Ekstrak data aslinya dari dalam properti `contents` proxy
-                let json;
-                try {
-                    json = JSON.parse(proxyJson.contents);
-                } catch (e) {
-                    json = proxyJson; // Fallback kalau ternyata tidak diproxy
-                }
-
-                console.log("Hasil respons API:", json);
-
-                // Cek kalau formatnya langsung Array
-                if (Array.isArray(json)) {
-                    setDzikirData(json);
-                    setFilteredData(json);
-                }
-                // Cek kalau formatnya dibungkus object 'data'
-                else if (json && json.data && Array.isArray(json.data)) {
+                // API mengembalikan format { status: 200, data: [...] }
+                if (json && json.data && Array.isArray(json.data)) {
                     setDzikirData(json.data);
                     setFilteredData(json.data);
-                }
-                else {
+                } else if (Array.isArray(json)) {
+                    setDzikirData(json);
+                    setFilteredData(json);
+                } else {
                     setErrorMsg("Format respons API tidak sesuai.");
                 }
             } catch (error: any) {
@@ -75,12 +76,20 @@ export default function Dzikir() {
     }, []);
 
     useEffect(() => {
-        if (subTab === 'semua') {
-            setFilteredData(dzikirData);
-        } else {
-            setFilteredData(dzikirData.filter(d => d.type.toLowerCase() === subTab));
+        let result = dzikirData;
+
+        // Filter by sub tab
+        if (subTab !== 'semua') {
+            result = result.filter(d => d.type.toLowerCase() === subTab);
         }
-    }, [subTab, dzikirData]);
+
+        // Filter by saved
+        if (showSaved) {
+            result = result.filter(d => savedItems.has(getDzikirKey(d)));
+        }
+
+        setFilteredData(result);
+    }, [subTab, dzikirData, showSaved, savedItems]);
 
     const handleDuhaPress = () => {
         Alert.alert("Informasi", "Fitur Dzikir Duha masih dalam tahap pengembangan (Develop).");
@@ -88,12 +97,25 @@ export default function Dzikir() {
 
     const renderItem = ({ item, index }: { item: DzikirItem; index: number }) => {
         const displayIndex = index + 1;
+        const isSaved = savedItems.has(getDzikirKey(item));
 
         // Kapitalisasi awal untuk label tipe
         const typeLabel = item.type.charAt(0).toUpperCase() + item.type.slice(1);
 
         return (
-            <View style={styles.card}>
+            <TouchableOpacity
+                style={styles.card}
+                activeOpacity={0.7}
+                onPress={() => router.push({
+                    pathname: '/DetailDzikir',
+                    params: {
+                        type: item.type,
+                        arab: item.arab,
+                        indo: item.indo,
+                        ulang: item.ulang,
+                    }
+                })}
+            >
                 {/* Header Card */}
                 <View style={styles.cardHeader}>
                     <View style={styles.headerLeft}>
@@ -115,12 +137,21 @@ export default function Dzikir() {
 
                 {/* Footer Bookmark */}
                 <View style={styles.cardFooter}>
-                    <TouchableOpacity style={styles.saveBtn}>
-                        <Bookmark size={14} color="#728D8E" />
-                        <Text style={styles.saveText}>Simpan</Text>
+                    <TouchableOpacity
+                        style={[styles.saveBtn, isSaved && styles.saveBtnActive]}
+                        onPress={() => toggleSave(item)}
+                        activeOpacity={0.7}
+                    >
+                        {isSaved
+                            ? <BookmarkCheck size={14} color="#fff" />
+                            : <Bookmark size={14} color="#728D8E" />
+                        }
+                        <Text style={[styles.saveText, isSaved && styles.saveTextActive]}>
+                            {isSaved ? 'Tersimpan' : 'Simpan'}
+                        </Text>
                     </TouchableOpacity>
                 </View>
-            </View>
+            </TouchableOpacity>
         );
     };
 
@@ -131,9 +162,22 @@ export default function Dzikir() {
                 <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
                     <ArrowLeft size={24} color="#728D8E" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Dzikir</Text>
-                <TouchableOpacity style={styles.iconBtn}>
-                    <Bookmark size={22} color="#728D8E" />
+                <Text style={styles.headerTitle}>{showSaved ? 'Dzikir Tersimpan' : 'Dzikir'}</Text>
+                <TouchableOpacity
+                    style={styles.iconBtn}
+                    onPress={() => setShowSaved(!showSaved)}
+                    activeOpacity={0.7}
+                >
+                    <Bookmark
+                        size={22}
+                        color={showSaved ? '#E2C675' : '#728D8E'}
+                        fill={showSaved ? '#E2C675' : 'transparent'}
+                    />
+                    {savedItems.size > 0 && (
+                        <View style={styles.badgeCount}>
+                            <Text style={styles.badgeCountText}>{savedItems.size}</Text>
+                        </View>
+                    )}
                 </TouchableOpacity>
             </View>
 
@@ -193,7 +237,15 @@ export default function Dzikir() {
                 </View>
             ) : filteredData.length === 0 ? (
                 <View style={styles.center}>
-                    <Text style={styles.loadingText}>Tidak ada dzikir ditemukan.</Text>
+                    <Bookmark size={48} color="#ddd" />
+                    <Text style={styles.loadingText}>
+                        {showSaved ? 'Belum ada dzikir yang disimpan.' : 'Tidak ada dzikir ditemukan.'}
+                    </Text>
+                    {showSaved && (
+                        <Text style={styles.emptySubText}>
+                            Tekan tombol "Simpan" di setiap dzikir untuk menyimpannya.
+                        </Text>
+                    )}
                 </View>
             ) : (
                 <FlatList
@@ -411,9 +463,39 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         gap: 6,
     },
+    saveBtnActive: {
+        backgroundColor: TEAL,
+    },
     saveText: {
         fontSize: 12,
         fontWeight: '600',
         color: TEAL_LIGHT,
+    },
+    saveTextActive: {
+        color: '#fff',
+    },
+    badgeCount: {
+        position: 'absolute',
+        top: -4,
+        right: -6,
+        backgroundColor: '#E2C675',
+        borderRadius: 10,
+        minWidth: 18,
+        height: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 4,
+    },
+    badgeCountText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#fff',
+    },
+    emptySubText: {
+        fontSize: 12,
+        color: '#aaa',
+        textAlign: 'center',
+        paddingHorizontal: 40,
+        marginTop: 4,
     },
 });

@@ -39,6 +39,13 @@ export default function RootLayout() {
         <Stack.Screen name="DoaHarian" options={{ headerShown: false }} />
         <Stack.Screen name="DetailDoa" options={{ headerShown: false }} />
         <Stack.Screen name="Dzikir" options={{ headerShown: false }} />
+        <Stack.Screen name="Hadits" options={{ headerShown: false }} />
+        <Stack.Screen name="DetailDzikir" options={{ headerShown: false }} />
+        <Stack.Screen name="DetailHadits" options={{ headerShown: false }} />
+        <Stack.Screen name="ArahKiblat" options={{ headerShown: false }} />
+        <Stack.Screen name="Donasi" options={{ headerShown: false }} />
+        <Stack.Screen name="AsmaulHusna" options={{ headerShown: false }} />
+        <Stack.Screen name="Lainnya" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />

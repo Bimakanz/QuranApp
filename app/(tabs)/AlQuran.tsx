@@ -165,7 +165,6 @@ const styles = StyleSheet.create({
     screen: {
         flex: 1,
         backgroundColor: BG,
-        paddingTop: 20,
     },
 
     /* Header */

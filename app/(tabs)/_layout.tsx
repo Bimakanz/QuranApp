@@ -33,6 +33,12 @@ function FloatingTabBar({ state, descriptors, navigation }: any) {
 
   const bottomOffset = insets.bottom + 12;
 
+  // Sembunyikan navbar jika sedang di halaman AI
+  const currentRouteName = state.routes[state.index]?.name;
+  if (currentRouteName === 'AI') {
+    return null;
+  }
+
   return (
     <>
       {/* ── Main floating pill (Home, Al-Quran, Artikel, Pengaturan) ── */}
@@ -117,7 +123,7 @@ export default function TabLayout() {
   );
 }
 
-const PILL_RADIUS = 32;
+const PILL_RADIUS = 25;
 
 const styles = StyleSheet.create({
   /* ── Main pill ── */
@@ -182,7 +188,7 @@ const styles = StyleSheet.create({
     right: 20,
     width: 62,
     height: 70,
-    borderRadius: PILL_RADIUS,
+    borderRadius: 10,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },

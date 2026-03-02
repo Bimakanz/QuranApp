@@ -19,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const PRAYER_TIMES = [
+const DEFAULT_PRAYER_TIMES = [
     { name: 'Subuh', time: '04:43', Icon: Sunrise },
     { name: 'Dzuhur', time: '12:09', Icon: Sun },
     { name: 'Ashar', time: '15:12', Icon: CloudSun },
@@ -40,31 +40,31 @@ export interface DoaItem {
     hasLiked?: boolean;
 }
 
-const HIJRI_DATE = '12 Ramadan 1447 H';
+
 const LOCATION = 'Bogor, Indonesia';
 
 const MENU_ITEMS = [
     { label: 'Al-Quran', Icon: BookOpen, route: '/AlQuran' },
     { label: 'Doa Harian', Icon: MessageCircle, route: '/DoaHarian' },
     { label: 'Dzikir Duha', Icon: Heart, route: '/Dzikir' },
-    { label: 'Hadits', Icon: FileText },
-    { label: 'Arah Kiblat', Icon: Compass },
-    { label: 'Donasi', Icon: Coins },
-    { label: 'Asmaul Husna', Icon: Book },
-    { label: 'Lainnya', Icon: LayoutGrid },
+    { label: 'Hadits', Icon: FileText, route: '/Hadits' },
+    { label: 'Arah Kiblat', Icon: Compass, route: '/ArahKiblat' },
+    { label: 'Donasi', Icon: Coins, route: '/Donasi' },
+    { label: 'Asmaul Husna', Icon: Book, route: '/AsmaulHusna' },
+    { label: 'Lainnya', Icon: LayoutGrid, route: '/Lainnya' },
 ];
 
 function pad(n: number) {
     return n.toString().padStart(2, '0');
 }
 
-function getNextPrayer(now: Date) {
+function getNextPrayer(now: Date, prayerTimes: typeof DEFAULT_PRAYER_TIMES) {
     const nowMin = now.getHours() * 60 + now.getMinutes();
-    for (const p of PRAYER_TIMES) {
+    for (const p of prayerTimes) {
         const [ph, pm] = p.time.split(':').map(Number);
         if (ph * 60 + pm > nowMin) return p;
     }
-    return PRAYER_TIMES[0];
+    return prayerTimes[0];
 }
 
 function getCountdown(now: Date, prayerTime: string) {
@@ -82,6 +82,10 @@ function getCountdown(now: Date, prayerTime: string) {
 export default function Home() {
     const router = useRouter();
     const [now, setNow] = useState(new Date());
+
+    // Dynamic Data States
+    const [hijriDate, setHijriDate] = useState('Memuat...');
+    const [prayerTimes, setPrayerTimes] = useState(DEFAULT_PRAYER_TIMES);
 
     // Doa State
     const [doas, setDoas] = useState<DoaItem[]>([
@@ -108,12 +112,42 @@ export default function Home() {
     const [formIsi, setFormIsi] = useState('');
 
     useEffect(() => {
+        const fetchIslamicData = async () => {
+            try {
+                // Fetch prayertimes and hijri date for Bogor
+                const res = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Bogor&country=Indonesia&method=11');
+                const json = await res.json();
+
+                if (json.data) {
+                    const timings = json.data.timings;
+                    const hijri = json.data.date.hijri;
+
+                    // Update Hijri Date String (e.g., "12 Ramadan 1445 H")
+                    setHijriDate(`${hijri.day} ${hijri.month.en} ${hijri.year} H`);
+
+                    // Update Prayer Times
+                    setPrayerTimes([
+                        { name: 'Subuh', time: timings.Fajr, Icon: Sunrise },
+                        { name: 'Dzuhur', time: timings.Dhuhr, Icon: Sun },
+                        { name: 'Ashar', time: timings.Asr, Icon: CloudSun },
+                        { name: 'Maghrib', time: timings.Maghrib, Icon: Sunset },
+                        { name: 'Isya', time: timings.Isha, Icon: Moon },
+                    ]);
+                }
+            } catch (error) {
+                console.error('Failed to fetch Islamic data:', error);
+                setHijriDate('Gagal memuat tanggal');
+            }
+        };
+
+        fetchIslamicData();
+
         const id = setInterval(() => setNow(new Date()), 1000);
         return () => clearInterval(id);
     }, []);
 
     const timeStr = `${pad(now.getHours())}.${pad(now.getMinutes())}`;
-    const next = getNextPrayer(now);
+    const next = getNextPrayer(now, prayerTimes);
     const countdown = getCountdown(now, next.time);
 
     // Handlers
@@ -165,7 +199,7 @@ export default function Home() {
                     {/* Date row + bell */}
                     <View style={styles.dateRow}>
                         <View>
-                            <Text style={styles.hijriDate}>{HIJRI_DATE}</Text>
+                            <Text style={styles.hijriDate}>{hijriDate}</Text>
                             <Text style={styles.location}>{LOCATION}</Text>
                         </View>
                         <TouchableOpacity style={styles.bellBtn} activeOpacity={0.7}>
@@ -184,7 +218,7 @@ export default function Home() {
 
                     {/* Prayer times row */}
                     <View style={styles.prayerRow}>
-                        {PRAYER_TIMES.map((p) => (
+                        {prayerTimes.map((p) => (
                             <View key={p.name} style={styles.prayerItem}>
                                 <Text style={styles.prayerName}>{p.name}</Text>
                                 <p.Icon

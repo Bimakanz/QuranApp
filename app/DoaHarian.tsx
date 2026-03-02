@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, RefreshCcw, Search, Star } from 'lucide-react-native';
+import { ArrowLeft, Bookmark, BookmarkCheck, Search } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -25,11 +25,11 @@ export default function DoaHarian() {
     const [doas, setDoas] = useState<Doa[]>([]);
     const [filteredDoas, setFilteredDoas] = useState<Doa[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeTab, setActiveTab] = useState<'semua' | 'favorit'>('semua');
     const [loading, setLoading] = useState(true);
 
-    // In a real app, this would be persisted in AsyncStorage
-    const [favorites, setFavorites] = useState<Set<string>>(new Set());
+    // Bookmark state
+    const [savedItems, setSavedItems] = useState<Set<string>>(new Set());
+    const [showSaved, setShowSaved] = useState(false);
 
     const fetchDoas = async () => {
         setLoading(true);
@@ -53,11 +53,6 @@ export default function DoaHarian() {
     useEffect(() => {
         let result = doas;
 
-        // Filter tab
-        if (activeTab === 'favorit') {
-            result = result.filter(doa => favorites.has(doa.id));
-        }
-
         // Filter search
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
@@ -68,12 +63,17 @@ export default function DoaHarian() {
             );
         }
 
-        setFilteredDoas(result);
-    }, [searchQuery, activeTab, doas, favorites]);
+        // Filter saved
+        if (showSaved) {
+            result = result.filter(doa => savedItems.has(doa.id));
+        }
 
-    const toggleFavorite = (id: string, e: any) => {
+        setFilteredDoas(result);
+    }, [searchQuery, showSaved, doas, savedItems]);
+
+    const toggleSave = (id: string, e: any) => {
         e.stopPropagation(); // prevent card tap
-        setFavorites(prev => {
+        setSavedItems(prev => {
             const next = new Set(prev);
             if (next.has(id)) next.delete(id);
             else next.add(id);
@@ -82,7 +82,7 @@ export default function DoaHarian() {
     };
 
     const renderItem = ({ item, index }: { item: Doa; index: number }) => {
-        const isFavorite = favorites.has(item.id);
+        const isSaved = savedItems.has(item.id);
         const displayIndex = index + 1;
 
         return (
@@ -100,23 +100,37 @@ export default function DoaHarian() {
                     }
                 })}
             >
+                {/* Header Card */}
                 <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>{item.judul}</Text>
-                    <TouchableOpacity onPress={(e) => toggleFavorite(item.id, e)} style={styles.starBtn}>
-                        <Star size={20} color={isFavorite ? "#E2C675" : "#728D8E"} fill={isFavorite ? "#E2C675" : "transparent"} />
-                    </TouchableOpacity>
+                    <View style={styles.headerLeft}>
+                        <Text style={styles.doaNumber}>Doa #{displayIndex}</Text>
+                        <View style={styles.typeBadge}>
+                            <Text style={styles.typeText} numberOfLines={1}>{item.judul}</Text>
+                        </View>
+                    </View>
                 </View>
 
-                {/* Potongan ayat Arab untuk preview (max 1 baris) */}
-                <Text style={styles.arabPreview} numberOfLines={1}>{item.arab}</Text>
+                {/* Ayat Arab */}
+                <Text style={styles.arabText}>{item.arab}</Text>
 
+                {/* Terjemahan Indo */}
+                <Text style={styles.indoText}>{item.terjemah}</Text>
+
+                {/* Footer Bookmark */}
                 <View style={styles.cardFooter}>
-                    <Text style={styles.latinPreview} numberOfLines={2}>
-                        {item.terjemah}
-                    </Text>
-                    <View style={styles.numberBadge}>
-                        <Text style={styles.numberText}>#{displayIndex}</Text>
-                    </View>
+                    <TouchableOpacity
+                        style={[styles.saveBtn, isSaved && styles.saveBtnActive]}
+                        onPress={(e) => toggleSave(item.id, e)}
+                        activeOpacity={0.7}
+                    >
+                        {isSaved
+                            ? <BookmarkCheck size={14} color="#fff" />
+                            : <Bookmark size={14} color="#728D8E" />
+                        }
+                        <Text style={[styles.saveText, isSaved && styles.saveTextActive]}>
+                            {isSaved ? 'Tersimpan' : 'Simpan'}
+                        </Text>
+                    </TouchableOpacity>
                 </View>
             </TouchableOpacity>
         );
@@ -130,8 +144,21 @@ export default function DoaHarian() {
                     <ArrowLeft size={24} color="#728D8E" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Doa Harian</Text>
-                <TouchableOpacity onPress={fetchDoas} style={styles.iconBtn}>
-                    <RefreshCcw size={22} color="#728D8E" />
+                <TouchableOpacity
+                    onPress={() => setShowSaved(!showSaved)}
+                    style={[styles.headerBookmark, showSaved && styles.headerBookmarkActive]}
+                    activeOpacity={0.7}
+                >
+                    <Bookmark
+                        size={22}
+                        color={showSaved ? '#E2C675' : '#728D8E'}
+                        fill={showSaved ? '#E2C675' : 'transparent'}
+                    />
+                    {savedItems.size > 0 && (
+                        <View style={styles.badgeCount}>
+                            <Text style={styles.badgeCountText}>{savedItems.size}</Text>
+                        </View>
+                    )}
                 </TouchableOpacity>
             </View>
 
@@ -151,25 +178,7 @@ export default function DoaHarian() {
                 </View>
             </View>
 
-            {/* Filter Tabs */}
-            <View style={styles.tabsContainer}>
-                <TouchableOpacity
-                    style={[styles.tabBtn, activeTab === 'semua' && styles.tabBtnActive]}
-                    onPress={() => setActiveTab('semua')}
-                    activeOpacity={0.7}
-                >
-                    <Text style={[styles.tabText, activeTab === 'semua' && styles.tabTextActive]}>Semua</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.tabBtn, activeTab === 'favorit' && styles.tabBtnActive]}
-                    onPress={() => setActiveTab('favorit')}
-                    activeOpacity={0.7}
-                >
-                    <Text style={[styles.tabText, activeTab === 'favorit' && styles.tabTextActive]}>
-                        Favorit ({favorites.size})
-                    </Text>
-                </TouchableOpacity>
-            </View>
+
 
             {/* List */}
             {loading ? (
@@ -260,35 +269,32 @@ const styles = StyleSheet.create({
         padding: 0,
     },
 
-    /* Tabs */
-    tabsContainer: {
-        flexDirection: 'row',
-        paddingHorizontal: 20,
-        marginBottom: 16,
-        gap: 8,
+    headerBookmark: {
+        padding: 8,
     },
-    tabBtn: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: '#EAEBE8',
+    headerBookmarkActive: {
+        backgroundColor: 'transparent',
     },
-    tabBtnActive: {
-        backgroundColor: TEAL,
-        borderColor: TEAL,
+    badgeCount: {
+        position: 'absolute',
+        top: 2,
+        right: 2,
+        backgroundColor: '#E2C675',
+        borderRadius: 10,
+        minWidth: 16,
+        height: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1.5,
+        borderColor: '#fff',
     },
-    tabText: {
-        fontSize: 13,
-        color: '#666',
-        fontWeight: '500',
-    },
-    tabTextActive: {
+    badgeCountText: {
         color: '#fff',
+        fontSize: 9,
+        fontWeight: 'bold',
+        paddingHorizontal: 3,
     },
 
-    /* List */
     listContainer: {
         flex: 1,
     },
@@ -312,50 +318,72 @@ const styles = StyleSheet.create({
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 10,
+        alignItems: 'center',
+        marginBottom: 16,
     },
-    cardTitle: {
-        fontSize: 15,
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        flex: 1,
+    },
+    doaNumber: {
+        fontSize: 14,
         fontWeight: '700',
         color: '#1a1a1a',
-        flex: 1,
-        marginRight: 10,
     },
-    starBtn: {
-        backgroundColor: '#F5F8F8',
-        padding: 6,
-        borderRadius: 8,
-    },
-    arabPreview: {
-        fontFamily: 'NotoNaskhArabic',
-        fontSize: 18,
-        color: '#888',
-        textAlign: 'right',
-        writingDirection: 'rtl',
-        marginBottom: 12,
-    },
-    cardFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-end',
-        gap: 12,
-    },
-    latinPreview: {
-        flex: 1,
-        fontSize: 12,
-        color: '#666',
-        lineHeight: 18,
-    },
-    numberBadge: {
+    typeBadge: {
         backgroundColor: '#E8F0F0',
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 6,
+        flexShrink: 1,
     },
-    numberText: {
+    typeText: {
         fontSize: 11,
-        fontWeight: '700',
+        fontWeight: '600',
         color: TEAL,
+    },
+    arabText: {
+        fontFamily: 'NotoNaskhArabic',
+        fontSize: 22,
+        color: '#1a1a1a',
+        textAlign: 'right',
+        writingDirection: 'rtl',
+        lineHeight: 38,
+        marginBottom: 16,
+    },
+    indoText: {
+        fontSize: 13,
+        color: '#666',
+        lineHeight: 20,
+        marginBottom: 16,
+    },
+    cardFooter: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        borderTopWidth: 1,
+        borderTopColor: '#F0F0F0',
+        paddingTop: 12,
+    },
+    saveBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F5F8F8',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        gap: 6,
+    },
+    saveBtnActive: {
+        backgroundColor: TEAL,
+    },
+    saveText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: TEAL,
+    },
+    saveTextActive: {
+        color: '#fff',
     },
 });

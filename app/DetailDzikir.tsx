@@ -1,3 +1,4 @@
+
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Copy, Share2 } from 'lucide-react-native';
 import React, { useState } from 'react';
@@ -12,30 +13,32 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function DetailDoa() {
+export default function DetailDzikir() {
     const router = useRouter();
-
-    // Menerima parameter dari halaman sebelumnya (DoaHarian)
-    const { title, arab, latin, arti } = useLocalSearchParams();
+    const { type, arab, indo, ulang } = useLocalSearchParams();
     const [copied, setCopied] = useState(false);
 
     const handleCopy = () => {
-        const copyText = `${title}\n\n${arab}\n\nLatin: ${latin}\n\nArti: ${arti}`;
-        Clipboard.setString(copyText);
+        const text = `${arab}\n\nArtinya:\n${indo}\n\nDibaca: ${ulang}`;
+        Clipboard.setString(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
 
     const handleShare = async () => {
         try {
-            const shareMsg = `${title}\n\n${arab}\n\nLatin: ${latin}\n\nArti: ${arti}\n\nDibagikan dari QuranApp`;
             await Share.share({
-                message: shareMsg,
+                message: `${arab}\n\nArtinya:\n${indo}\n\nDibaca: ${ulang}`,
             });
-        } catch (error: any) {
-            console.error(error.message);
+        } catch {
+            // user cancelled
         }
     };
+
+    // Kapitalisasi tipe
+    const typeLabel = typeof type === 'string'
+        ? type.charAt(0).toUpperCase() + type.slice(1)
+        : 'Dzikir';
 
     return (
         <SafeAreaView style={styles.screen} edges={['top']}>
@@ -44,33 +47,39 @@ export default function DetailDoa() {
                 <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
                     <ArrowLeft size={24} color="#728D8E" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
-                <View style={{ width: 24 }} /> {/* placeholder for balance */}
+                <Text style={styles.headerTitle} numberOfLines={1}>Detail Dzikir</Text>
+                <View style={{ width: 24 }} />
             </View>
             <View style={styles.headerDivider} />
 
             <ScrollView contentContainerStyle={styles.content}>
 
+                {/* Tipe + Ulang badges */}
+                <View style={styles.badgeRow}>
+                    <View style={styles.typeBadge}>
+                        <Text style={styles.typeBadgeText}>Dzikir {typeLabel}</Text>
+                    </View>
+                    <View style={styles.ulangBadge}>
+                        <Text style={styles.ulangBadgeText}>Dibaca {ulang}</Text>
+                    </View>
+                </View>
+
                 {/* Ayat Arab */}
                 <Text style={styles.arabText}>{arab}</Text>
 
-                {/* Latin */}
-                <Text style={styles.latinLabel}>Latin:</Text>
-                <Text style={styles.latinText}>{latin}</Text>
-
                 <View style={styles.divider} />
 
-                {/* Artinya */}
-                <Text style={styles.artiLabel}>Artinya:</Text>
-                <Text style={styles.artiText}>{arti}</Text>
+                {/* Terjemahan */}
+                <Text style={styles.artiLabel}>Terjemahan:</Text>
+                <Text style={styles.artiText}>{indo}</Text>
 
                 {/* Action Buttons */}
                 <View style={styles.actionRow}>
-                    <TouchableOpacity style={styles.actionBtn} onPress={handleCopy} activeOpacity={0.7}>
+                    <TouchableOpacity style={styles.actionBtn} onPress={handleCopy}>
                         <Copy size={18} color="#728D8E" />
                         <Text style={styles.actionText}>{copied ? 'Tersalin!' : 'Salin'}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionBtn} onPress={handleShare} activeOpacity={0.7}>
+                    <TouchableOpacity style={styles.actionBtn} onPress={handleShare}>
                         <Share2 size={18} color="#728D8E" />
                         <Text style={styles.actionText}>Bagikan</Text>
                     </TouchableOpacity>
@@ -119,12 +128,32 @@ const styles = StyleSheet.create({
         padding: 24,
         paddingBottom: 60,
     },
-    doaTitle: {
-        fontSize: 22,
-        fontWeight: '700',
-        color: '#1a1a1a',
-        marginBottom: 32,
-        textAlign: 'center',
+    badgeRow: {
+        flexDirection: 'row',
+        gap: 8,
+        marginBottom: 24,
+    },
+    typeBadge: {
+        backgroundColor: '#E8F0F0',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 8,
+    },
+    typeBadgeText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#32665C',
+    },
+    ulangBadge: {
+        backgroundColor: '#F5F5F5',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 8,
+    },
+    ulangBadgeText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#666',
     },
     arabText: {
         fontFamily: 'NotoNaskhArabic',
@@ -134,19 +163,6 @@ const styles = StyleSheet.create({
         writingDirection: 'rtl',
         lineHeight: 48,
         marginBottom: 32,
-    },
-    latinLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: TEAL,
-        marginBottom: 8,
-    },
-    latinText: {
-        fontSize: 15,
-        color: '#444',
-        lineHeight: 24,
-        fontStyle: 'italic',
-        marginBottom: 24,
     },
     divider: {
         height: 1,
