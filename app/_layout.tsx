@@ -46,6 +46,7 @@ export default function RootLayout() {
         <Stack.Screen name="Donasi" options={{ headerShown: false }} />
         <Stack.Screen name="AsmaulHusna" options={{ headerShown: false }} />
         <Stack.Screen name="Lainnya" options={{ headerShown: false }} />
+        <Stack.Screen name="Notifikasi" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />

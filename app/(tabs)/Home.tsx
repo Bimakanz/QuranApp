@@ -202,7 +202,7 @@ export default function Home() {
                             <Text style={styles.hijriDate}>{hijriDate}</Text>
                             <Text style={styles.location}>{LOCATION}</Text>
                         </View>
-                        <TouchableOpacity style={styles.bellBtn} activeOpacity={0.7}>
+                        <TouchableOpacity style={styles.bellBtn} activeOpacity={0.7} onPress={() => router.push('/Notifikasi')}>
                             <Bell size={22} color="#fff" />
                         </TouchableOpacity>
                     </View>
