@@ -1,16 +1,18 @@
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Search } from 'lucide-react-native';
+import { ArrowLeft, RefreshCw, Search } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
     FlatList,
-    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SkeletonAsmaulCard } from '../components/SkeletonLoader';
+
+const TEAL = '#32665C';
+const BG = '#F5F0E8';
 
 interface AsmaulHusnaItem {
     urutan: number;
@@ -25,76 +27,83 @@ export default function AsmaulHusna() {
     const [filteredData, setFilteredData] = useState<AsmaulHusnaItem[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    useEffect(() => {
+    const loadData = (isRefresh = false) => {
+        if (isRefresh) setRefreshing(true);
         fetch('https://asmaul-husna-api.vercel.app/api/all')
             .then((res) => res.json())
             .then((json) => {
-                if (json.data) {
-                    setData(json.data);
-                    setFilteredData(json.data);
-                } else {
-                    setErrorMsg('Gagal memuat data Asmaul Husna.');
-                }
+                if (json.data) { setData(json.data); setFilteredData(json.data); setErrorMsg(null); }
+                else setErrorMsg('Gagal memuat data Asmaul Husna.');
             })
-            .catch((err) => {
-                console.error(err);
-                setErrorMsg('Terjadi kesalahan jaringan.');
-            })
-            .finally(() => setLoading(false));
-    }, []);
+            .catch((err) => { console.error(err); setErrorMsg('Terjadi kesalahan jaringan.'); })
+            .finally(() => { setLoading(false); setRefreshing(false); });
+    };
+
+    useEffect(() => { loadData(); }, []);
 
     const handleSearch = (text: string) => {
         setSearchQuery(text);
-        if (text.trim() === '') {
-            setFilteredData(data);
-        } else {
-            const lowerText = text.toLowerCase();
-            const filtered = data.filter(
-                (item) =>
-                    item.latin.toLowerCase().includes(lowerText) ||
-                    item.arti.toLowerCase().includes(lowerText) ||
-                    item.arab.includes(lowerText)
-            );
-            setFilteredData(filtered);
-        }
+        if (text.trim() === '') { setFilteredData(data); return; }
+        const lowerText = text.toLowerCase();
+        setFilteredData(data.filter((item) =>
+            item.latin.toLowerCase().includes(lowerText) ||
+            item.arti.toLowerCase().includes(lowerText) ||
+            item.arab.includes(lowerText)
+        ));
     };
 
     const renderItem = ({ item }: { item: AsmaulHusnaItem }) => (
-        <View style={styles.card}>
-            <View style={styles.cardHeader}>
-                <Text style={styles.urutan}>{item.urutan}</Text>
-                <Text style={styles.arab}>{item.arab}</Text>
+        <View style={{
+            backgroundColor: '#fff', borderRadius: 12, padding: 12, width: '31%',
+            borderWidth: 1, borderColor: '#EAEBE8',
+            shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.05, shadowRadius: 2, elevation: 1,
+        }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <Text style={{ fontSize: 11, color: '#888', fontWeight: '600' }}>{item.urutan}</Text>
+                <Text style={{ fontSize: 20, fontFamily: 'serif', color: '#1a1a1a', textAlign: 'right', flex: 1, marginLeft: 4 }}>
+                    {item.arab}
+                </Text>
             </View>
-            <View style={styles.cardBody}>
-                <Text style={styles.latin}>{item.latin}</Text>
-                <Text style={styles.arti} numberOfLines={2}>{item.arti}</Text>
+            <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#1a1a1a', marginBottom: 2 }}>{item.latin}</Text>
+                <Text style={{ fontSize: 10, color: '#666', lineHeight: 14 }} numberOfLines={2}>{item.arti}</Text>
             </View>
         </View>
     );
 
     return (
-        <SafeAreaView style={styles.screen} edges={['top']}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: BG }} edges={['top']}>
+
             {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 }}>
+                <TouchableOpacity onPress={() => router.back()} style={{ padding: 4 }}>
                     <ArrowLeft size={24} color="#728D8E" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Asmaul Husna</Text>
-                <TouchableOpacity onPress={() => fetch('https://asmaul-husna-api.vercel.app/api/all').then(res => res.json()).then(j => { setData(j.data); setFilteredData(j.data) })} style={styles.iconBtn}>
-                    {/* Placeholder for the refresh icon seen in the screenshot */}
-                    <Text style={{ color: '#728D8E', fontSize: 20 }}>↻</Text>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: '#1a1a1a' }}>Asmaul Husna</Text>
+                <TouchableOpacity
+                    onPress={() => loadData(true)}
+                    style={{ padding: 6, borderRadius: 20 }}
+                    activeOpacity={0.7}
+                >
+                    <RefreshCw
+                        size={18}
+                        color="#32665C"
+                        style={refreshing ? { opacity: 0.4 } : {}}
+                    />
                 </TouchableOpacity>
             </View>
-            <View style={styles.headerDivider} />
+            <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.05)' }} />
 
             {/* Search Bar */}
-            <View style={styles.searchContainer}>
-                <View style={styles.searchBox}>
+            <View style={{ paddingHorizontal: 20, paddingVertical: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: '#EAEBE8' }}>
                     <Search size={20} color="#a0a0a0" />
                     <TextInput
-                        style={styles.searchInput}
+                        style={{ flex: 1, marginLeft: 10, fontSize: 14, color: '#1a1a1a' }}
                         placeholder="Cari arab, latin, arti..."
                         placeholderTextColor="#a0a0a0"
                         value={searchQuery}
@@ -105,20 +114,26 @@ export default function AsmaulHusna() {
 
             {/* Content */}
             {loading ? (
-                <View style={styles.center}>
-                    <ActivityIndicator size="large" color="#32665C" />
+                <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+                    {Array.from({ length: 5 }).map((_, rowIdx) => (
+                        <View key={rowIdx} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                            {Array.from({ length: 3 }).map((_, colIdx) => (
+                                <SkeletonAsmaulCard key={colIdx} />
+                            ))}
+                        </View>
+                    ))}
                 </View>
             ) : errorMsg ? (
-                <View style={styles.center}>
-                    <Text style={styles.errorText}>{errorMsg}</Text>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text style={{ color: '#D32F2F', fontSize: 14 }}>{errorMsg}</Text>
                 </View>
             ) : (
                 <FlatList
                     data={filteredData}
                     keyExtractor={(item) => item.urutan.toString()}
                     numColumns={3}
-                    contentContainerStyle={styles.listContainer}
-                    columnWrapperStyle={styles.columnWrapper}
+                    contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+                    columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 12 }}
                     renderItem={renderItem}
                     showsVerticalScrollIndicator={false}
                 />
@@ -126,122 +141,3 @@ export default function AsmaulHusna() {
         </SafeAreaView>
     );
 }
-
-const BG = '#FDFBF7';
-const TEAL = '#32665C';
-
-const styles = StyleSheet.create({
-    screen: {
-        flex: 1,
-        backgroundColor: BG,
-    },
-    center: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    errorText: {
-        color: '#D32F2F',
-        fontSize: 14,
-    },
-
-    // Header
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 14,
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#1a1a1a',
-    },
-    iconBtn: {
-        padding: 4,
-    },
-    headerDivider: {
-        height: 1,
-        backgroundColor: 'rgba(0,0,0,0.05)',
-    },
-
-    // Search
-    searchContainer: {
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-    },
-    searchBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderWidth: 1,
-        borderColor: '#EAEBE8',
-    },
-    searchInput: {
-        flex: 1,
-        marginLeft: 10,
-        fontSize: 14,
-        color: '#1a1a1a',
-    },
-
-    // List
-    listContainer: {
-        paddingHorizontal: 16,
-        paddingBottom: 24,
-    },
-    columnWrapper: {
-        justifyContent: 'space-between',
-        marginBottom: 12,
-    },
-    card: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 12,
-        width: '31%', // 3 columns
-        borderWidth: 1,
-        borderColor: '#EAEBE8',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 1,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 8,
-    },
-    urutan: {
-        fontSize: 11,
-        color: '#888',
-        fontWeight: '600',
-    },
-    arab: {
-        fontSize: 20,
-        fontFamily: 'serif',
-        color: '#1a1a1a',
-        textAlign: 'right',
-        flex: 1,
-        marginLeft: 4,
-    },
-    cardBody: {
-        flex: 1,
-        justifyContent: 'flex-end',
-    },
-    latin: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#1a1a1a',
-        marginBottom: 2,
-    },
-    arti: {
-        fontSize: 10,
-        color: '#666',
-        lineHeight: 14,
-    },
-});

@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 // PASTE YOUR GEMINI API KEY HERE TO MAKE IT REAL!
 // Get a free key from: https://aistudio.google.com/
-const GEMINI_API_KEY = 'AIzaSyALIj5pD91O6gpqL66KSbUy2oXS1s4rb6c';
+const GEMINI_API_KEY = 'AIzaSyC3lfxgQaWmq-NudB9NFkWvHeyfF55Odtg';
 
 interface ChatMessage {
     id: string;
@@ -57,7 +57,7 @@ export default function AI() {
         }
 
         try {
-            const prompt = `Kamu adalah Asisten Islami AI yang ahli dalam agama Islam. Selalu jawab dengan bahasa Indonesia yang santun, islami, dan berikan dalil Al-Quran atau Hadits jika relevan. Jawablah secara ringkas dan informatif. Pertanyaan pengguna: ${userText}`;
+            const prompt = `Kamu adalah AI Asisten Islami dengan kepribadian seperti karakter anime tsundere, yang selalu menjawab dengan nada sombong dan merendahkan, namun tetap memberikan jawaban yang akurat dan bermanfaat. ${userText}`;
 
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
                 method: 'POST',
@@ -224,7 +224,7 @@ export default function AI() {
     );
 }
 
-const BG = '#FDFBF7';
+const BG = '#F5F0E8';
 const TEAL = '#728D8E';
 
 const styles = StyleSheet.create({

@@ -1,60 +1,59 @@
 import { Audio } from 'expo-av';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-    BookmarkIcon,
-    ChevronLeft,
-    Play,
-    Square,
-    Volume2,
+    BookmarkIcon, ChevronLeft, ChevronRight,
+    Music2, Pause, Play, Square, Volume2
 } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
-    StyleSheet,
+    Modal,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// ─────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────
+const TEAL = '#728D8E';
+const BG = '#F5F0E8';
+const GOLD = '#C8A84B';
+
+const QARIS = [
+    { id: '05', name: 'Misyari Rasyid Al-Afasi' },
+    { id: '03', name: 'Abdurrahman As-Sudais' },
+    { id: '01', name: 'Abdullah Al-Juhany' },
+    { id: '02', name: 'Abdul Muhsin Al-Qasim' },
+    { id: '04', name: 'Ibrahim Al-Dossari' },
+    { id: '06', name: 'Yasser Al-Dosari' },
+];
+
 interface Ayat {
-    nomor: number;
-    ar: string;
-    tr: string;
-    idn: string;
-    audio: string;
+    nomorAyat: number;
+    teksArab: string;
+    teksLatin: string;
+    teksIndonesia: string;
+    audio: Record<string, string>;
 }
 
 interface SurahDetail {
     nomor: number;
     nama: string;
-    nama_latin: string;
-    jumlah_ayat: number;
-    tempat_turun: string;
+    namaLatin: string;
+    jumlahAyat: number;
+    tempatTurun: string;
     arti: string;
     deskripsi: string;
-    audio: string; // full surah audio
+    audioFull: Record<string, string>;
     ayat: Ayat[];
+    suratSelanjutnya: { nomor: number; namaLatin: string } | false;
+    suratSebelumnya: { nomor: number; namaLatin: string } | false;
 }
 
-// Helper: buang semua tag HTML dari string
 function stripHtml(html: string): string {
-    return html
-        .replace(/<[^>]*>/g, '')   // hapus tag HTML
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&nbsp;/g, ' ')
-        .trim();
+    return html.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').trim();
 }
 
-// ─────────────────────────────────────────────────────────
-// Component
-// ─────────────────────────────────────────────────────────
 export default function SuratQuran() {
     const { nomor } = useLocalSearchParams<{ nomor: string }>();
     const router = useRouter();
@@ -62,342 +61,312 @@ export default function SuratQuran() {
     const [surah, setSurah] = useState<SurahDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [selectedQari, setSelectedQari] = useState(QARIS[0]);
+    const [showQariModal, setShowQariModal] = useState(false);
 
     // Audio state
     const soundRef = useRef<Audio.Sound | null>(null);
-    const [playingAyat, setPlayingAyat] = useState<number | null>(null); // nomor ayat yang sedang diputar
+    const [playingAyat, setPlayingAyat] = useState<number | null>(null);
     const [playingFull, setPlayingFull] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const autoPlayIndexRef = useRef<number>(-1);
 
-    // ── Fetch surah detail ────────────────────────────────
-    useEffect(() => {
-        fetch(`https://quran-api.santrikoding.com/api/surah/${nomor}`)
+    const fetchSurah = useCallback((num: string) => {
+        setLoading(true);
+        setError('');
+        fetch(`https://equran.id/api/v2/surat/${num}`)
             .then((r) => r.json())
-            .then((data: SurahDetail) => {
-                setSurah(data);
-                setLoading(false);
-            })
-            .catch(() => {
-                setError('Gagal memuat surah.');
-                setLoading(false);
-            });
+            .then((res) => { setSurah(res.data); setLoading(false); })
+            .catch(() => { setError('Gagal memuat surah.'); setLoading(false); });
+    }, []);
 
-        return () => {
-            stopSound();
-        };
+    useEffect(() => {
+        fetchSurah(nomor);
+        return () => { stopSound(); };
     }, [nomor]);
 
-    // ── Audio helpers ─────────────────────────────────────
     const stopSound = async () => {
+        autoPlayIndexRef.current = -1;
         if (soundRef.current) {
-            await soundRef.current.stopAsync();
-            await soundRef.current.unloadAsync();
+            try {
+                await soundRef.current.stopAsync();
+                await soundRef.current.unloadAsync();
+            } catch { }
             soundRef.current = null;
         }
         setPlayingAyat(null);
         setPlayingFull(false);
+        setIsLoading(false);
     };
 
-    const playAudio = async (url: string, ayatNomor?: number) => {
+    const playAudio = async (url: string, ayatNomor?: number, autoNextIndex?: number) => {
         await stopSound();
         try {
+            setIsLoading(true);
             await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
             const { sound } = await Audio.Sound.createAsync({ uri: url });
             soundRef.current = sound;
-            if (ayatNomor !== undefined) {
-                setPlayingAyat(ayatNomor);
-            } else {
-                setPlayingFull(true);
-            }
+            setIsLoading(false);
+
+            if (ayatNomor !== undefined) setPlayingAyat(ayatNomor);
+            else setPlayingFull(true);
+
+            if (autoNextIndex !== undefined) autoPlayIndexRef.current = autoNextIndex;
+
             await sound.playAsync();
             sound.setOnPlaybackStatusUpdate((status) => {
                 if (status.isLoaded && status.didJustFinish) {
-                    setPlayingAyat(null);
-                    setPlayingFull(false);
+                    const nextIndex = autoPlayIndexRef.current;
+                    if (nextIndex >= 0 && surah && nextIndex < surah.ayat.length) {
+                        // Auto-play next ayat
+                        const nextAyat = surah.ayat[nextIndex];
+                        const nextUrl = nextAyat.audio[selectedQari.id];
+                        playAudio(nextUrl, nextAyat.nomorAyat, nextIndex + 1);
+                    } else {
+                        setPlayingAyat(null);
+                        setPlayingFull(false);
+                        autoPlayIndexRef.current = -1;
+                    }
                 }
             });
         } catch {
-            // silently handle
+            setIsLoading(false);
         }
     };
 
     const toggleAyat = async (ayat: Ayat) => {
-        if (playingAyat === ayat.nomor) {
+        if (playingAyat === ayat.nomorAyat) {
             await stopSound();
         } else {
-            await playAudio(ayat.audio, ayat.nomor);
+            const url = ayat.audio[selectedQari.id];
+            if (url) await playAudio(url, ayat.nomorAyat, -1);
         }
     };
 
-    const toggleFull = async () => {
-        if (playingFull) {
+    const toggleFullSurah = async () => {
+        if (playingFull || playingAyat !== null) {
             await stopSound();
-        } else if (surah?.audio) {
-            await playAudio(surah.audio);
+        } else if (surah) {
+            // Play full surah audio (1 track)
+            const url = surah.audioFull[selectedQari.id];
+            if (url) await playAudio(url, undefined, -1);
         }
     };
 
-    // ── Render ayat item ──────────────────────────────────
-    const renderAyat = ({ item }: { item: Ayat }) => {
-        const isPlaying = playingAyat === item.nomor;
+    const playFromAyat = async (startIndex: number) => {
+        if (!surah) return;
+        await stopSound();
+        const ayat = surah.ayat[startIndex];
+        const url = ayat.audio[selectedQari.id];
+        if (url) await playAudio(url, ayat.nomorAyat, startIndex + 1);
+    };
+
+    const renderAyat = ({ item, index }: { item: Ayat; index: number }) => {
+        const isPlaying = playingAyat === item.nomorAyat;
         return (
-            <View style={styles.ayatCard}>
-                {/* Top row: nomor + play + bookmark */}
-                <View style={styles.ayatTopRow}>
-                    <View style={styles.ayatNumBadge}>
-                        <Text style={styles.ayatNumText}>{item.nomor}</Text>
+            <View style={{ paddingVertical: 16 }}>
+                {/* Ayat header row */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                    {/* Ayat number badge */}
+                    <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: GOLD, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>{item.nomorAyat}</Text>
                     </View>
 
-                    <View style={styles.ayatActions}>
+                    {/* Action buttons */}
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                        {/* Play/Stop per ayat */}
                         <TouchableOpacity
-                            style={styles.actionBtn}
+                            style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: isPlaying ? TEAL : '#E8E2D9', alignItems: 'center', justifyContent: 'center' }}
                             onPress={() => toggleAyat(item)}
                             activeOpacity={0.7}
                         >
                             {isPlaying
-                                ? <Square size={16} color="#728D8E" />
-                                : <Play size={16} color="#728D8E" />
+                                ? <Square size={14} color="#fff" />
+                                : (isLoading ? <ActivityIndicator size="small" color={TEAL} /> : <Play size={14} color={TEAL} />)
                             }
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7}>
-                            <BookmarkIcon size={16} color="#728D8E" />
+
+                        {/* Play from this ayat continuously */}
+                        <TouchableOpacity
+                            style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#E8E2D9', alignItems: 'center', justifyContent: 'center' }}
+                            onPress={() => playFromAyat(index)}
+                            activeOpacity={0.7}
+                        >
+                            <ChevronRight size={14} color={TEAL} />
+                        </TouchableOpacity>
+
+                        {/* Bookmark */}
+                        <TouchableOpacity
+                            style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#E8E2D9', alignItems: 'center', justifyContent: 'center' }}
+                            activeOpacity={0.7}
+                        >
+                            <BookmarkIcon size={14} color={TEAL} />
                         </TouchableOpacity>
                     </View>
                 </View>
 
-                {/* Arabic text */}
-                <Text style={styles.arabicText}>{item.ar}</Text>
+                {/* Arabic */}
+                <Text style={{ fontFamily: 'NotoNaskhArabic', fontSize: 28, color: '#1a1a1a', textAlign: 'right', lineHeight: 52, marginBottom: 12 }}>
+                    {item.teksArab}
+                </Text>
 
-                {/* Latin transliteration — strip HTML tags */}
-                <Text style={styles.latinText}>{stripHtml(item.tr)}</Text>
+                {/* Latin */}
+                <Text style={{ fontSize: 13, color: TEAL, fontStyle: 'italic', lineHeight: 22, marginBottom: 8 }}>
+                    {stripHtml(item.teksLatin)}
+                </Text>
 
-                {/* Indonesian translation */}
-                <Text style={styles.idnText}>{item.idn}</Text>
+                {/* Indonesian */}
+                <Text style={{ fontSize: 14, color: '#555', lineHeight: 22 }}>
+                    {item.teksIndonesia}
+                </Text>
             </View>
         );
     };
 
-    // ── Separator ─────────────────────────────────────────
-    const Separator = () => <View style={styles.separator} />;
+    const Separator = () => <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.07)' }} />;
 
-    // ── States ────────────────────────────────────────────
     if (loading) {
         return (
-            <SafeAreaView style={styles.center}>
-                <ActivityIndicator size="large" color="#728D8E" />
+            <SafeAreaView style={{ flex: 1, backgroundColor: BG, justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="large" color={TEAL} />
+                <Text style={{ marginTop: 12, color: TEAL, fontSize: 14 }}>Memuat surah...</Text>
             </SafeAreaView>
         );
     }
+
     if (error || !surah) {
         return (
-            <SafeAreaView style={styles.center}>
-                <Text style={styles.errorText}>{error}</Text>
+            <SafeAreaView style={{ flex: 1, backgroundColor: BG, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+                <Text style={{ color: '#c0392b', fontSize: 14 }}>{error || 'Data tidak tersedia.'}</Text>
+                <TouchableOpacity onPress={() => fetchSurah(nomor)} style={{ backgroundColor: TEAL, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 }}>
+                    <Text style={{ color: '#fff', fontWeight: '600' }}>Coba Lagi</Text>
+                </TouchableOpacity>
             </SafeAreaView>
         );
     }
 
-    return (
-        <SafeAreaView style={styles.screen} edges={['top']}>
+    const isAnyPlaying = playingFull || playingAyat !== null;
 
-            {/* ── Header ── */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
+    return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: BG }} edges={['top']}>
+
+            {/* Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.07)' }}>
+                <TouchableOpacity onPress={() => { stopSound(); router.back(); }} style={{ padding: 4 }} activeOpacity={0.7}>
                     <ChevronLeft size={24} color="#333" />
                 </TouchableOpacity>
-
-                <View style={styles.headerCenter}>
-                    <Text style={styles.headerTitle}>{surah.nama_latin}</Text>
-                    <Text style={styles.headerSub}>
-                        {surah.arti} • {surah.jumlah_ayat} Ayat • {surah.tempat_turun}
+                <View style={{ alignItems: 'center', flex: 1 }}>
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: '#1a1a1a' }}>{surah.namaLatin}</Text>
+                    <Text style={{ fontSize: 12, color: TEAL, marginTop: 2 }}>
+                        {surah.arti} • {surah.jumlahAyat} Ayat • {surah.tempatTurun}
                     </Text>
                 </View>
-
-                <Text style={styles.headerArab}>{surah.nama}</Text>
+                <Text style={{ fontFamily: 'NotoNaskhArabic', fontSize: 22, color: '#1a1a1a' }}>{surah.nama}</Text>
             </View>
 
-            {/* ── Divider ── */}
-            <View style={styles.divider} />
+            {/* Audio Controls Bar */}
+            <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingVertical: 12 }}>
+                {/* Qari Selector */}
+                <TouchableOpacity
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, borderWidth: 1, borderColor: '#E0DAD0', gap: 6 }}
+                    onPress={() => setShowQariModal(true)}
+                    activeOpacity={0.7}
+                >
+                    <Music2 size={14} color={TEAL} />
+                    <Text style={{ fontSize: 12, color: '#444', flex: 1 }} numberOfLines={1}>{selectedQari.name}</Text>
+                </TouchableOpacity>
 
-            {/* ── Putar Full Surah button ── */}
-            <TouchableOpacity
-                style={[styles.fullPlayBtn, playingFull && styles.fullPlayBtnActive]}
-                onPress={toggleFull}
-                activeOpacity={0.8}
-            >
-                {playingFull
-                    ? <Square size={18} color="#fff" />
-                    : <Volume2 size={18} color="#fff" />
-                }
-                <Text style={styles.fullPlayText}>
-                    {playingFull ? 'Stop' : 'Putar Full Surah'}
-                </Text>
-            </TouchableOpacity>
+                {/* Play Full Surah */}
+                <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isAnyPlaying ? '#5a7273' : TEAL, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 9, gap: 6 }}
+                    onPress={toggleFullSurah}
+                    activeOpacity={0.8}
+                >
+                    {isLoading
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : isAnyPlaying
+                            ? <Pause size={16} color="#fff" />
+                            : <Volume2 size={16} color="#fff" />
+                    }
+                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>
+                        {isAnyPlaying ? 'Stop' : 'Putar'}
+                    </Text>
+                </TouchableOpacity>
+            </View>
 
-            {/* ── Ayat list ── */}
+            {/* Now Playing Indicator */}
+            {isAnyPlaying && (
+                <View style={{ marginHorizontal: 20, marginBottom: 8, backgroundColor: '#E8F0F0', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: TEAL }} />
+                    <Text style={{ fontSize: 12, color: TEAL, flex: 1 }}>
+                        {playingFull ? `Memutar full surah • ${selectedQari.name}` : `Memutar Ayat ${playingAyat} • ${selectedQari.name}`}
+                    </Text>
+                    <TouchableOpacity onPress={stopSound}>
+                        <Square size={14} color={TEAL} />
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {/* Surah List */}
             <FlatList
                 data={surah.ayat}
-                keyExtractor={(item) => String(item.nomor)}
+                keyExtractor={(item) => String(item.nomorAyat)}
                 renderItem={renderAyat}
                 ItemSeparatorComponent={Separator}
-                contentContainerStyle={styles.listContent}
+                contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 110 }}
                 showsVerticalScrollIndicator={false}
             />
+
+            {/* Navigation: Prev / Next Surah */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.07)', backgroundColor: BG }}>
+                {surah.suratSebelumnya ? (
+                    <TouchableOpacity
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, opacity: 1 }}
+                        onPress={() => router.replace({ pathname: '/SuratQuran', params: { nomor: String(surah.suratSebelumnya && surah.suratSebelumnya.nomor) } } as any)}
+                        activeOpacity={0.7}
+                    >
+                        <ChevronLeft size={16} color={TEAL} />
+                        <Text style={{ fontSize: 13, color: TEAL }}>{(surah.suratSebelumnya as any).namaLatin}</Text>
+                    </TouchableOpacity>
+                ) : <View />}
+
+                {surah.suratSelanjutnya && (
+                    <TouchableOpacity
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                        onPress={() => router.replace({ pathname: '/SuratQuran', params: { nomor: String((surah.suratSelanjutnya as any).nomor) } } as any)}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={{ fontSize: 13, color: TEAL }}>{(surah.suratSelanjutnya as any).namaLatin}</Text>
+                        <ChevronRight size={16} color={TEAL} />
+                    </TouchableOpacity>
+                )}
+            </View>
+
+            {/* Qari Picker Modal */}
+            <Modal visible={showQariModal} transparent animationType="slide" onRequestClose={() => setShowQariModal(false)}>
+                <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} activeOpacity={1} onPress={() => setShowQariModal(false)} />
+                <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 40 }}>
+                    <View style={{ alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' }}>
+                        <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#ddd', marginBottom: 12 }} />
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: '#1a1a1a' }}>Pilih Qari</Text>
+                    </View>
+                    {QARIS.map((qari) => (
+                        <TouchableOpacity
+                            key={qari.id}
+                            style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#f8f8f8' }}
+                            onPress={() => { setSelectedQari(qari); setShowQariModal(false); stopSound(); }}
+                            activeOpacity={0.7}
+                        >
+                            <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: selectedQari.id === qari.id ? TEAL : '#ddd', backgroundColor: selectedQari.id === qari.id ? TEAL : 'transparent', alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+                                {selectedQari.id === qari.id && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#fff' }} />}
+                            </View>
+                            <Text style={{ fontSize: 15, color: selectedQari.id === qari.id ? TEAL : '#333', fontWeight: selectedQari.id === qari.id ? '600' : '400' }}>
+                                {qari.name}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
-
-// ─────────────────────────────────────────────────────────
-// Styles
-// ─────────────────────────────────────────────────────────
-const BG = '#F5F0E8';
-const TEAL = '#728D8E';
-const GOLD = '#C8A84B';
-
-const styles = StyleSheet.create({
-    screen: {
-        flex: 1,
-        backgroundColor: BG,
-        paddingTop: 20,
-    },
-    center: {
-        flex: 1,
-        backgroundColor: BG,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-
-    /* Header */
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        gap: 10,
-    },
-    backBtn: {
-        padding: 4,
-    },
-    headerCenter: {
-        flex: 1,
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#1a1a1a',
-    },
-    headerSub: {
-        fontSize: 12,
-        color: '#888',
-        marginTop: 2,
-    },
-    headerArab: {
-        fontSize: 20,
-        color: TEAL,
-        fontFamily: 'NotoNaskhArabic',
-        writingDirection: 'rtl',
-    },
-
-    /* Divider */
-    divider: {
-        height: 1,
-        backgroundColor: 'rgba(16, 16, 16, 0.1)',
-        marginHorizontal: 1,
-        marginBottom: 14,
-    },
-
-    /* Full play button */
-    fullPlayBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        backgroundColor: TEAL,
-        marginHorizontal: 20,
-        marginBottom: 12,
-        borderRadius: 12,
-        paddingVertical: 12,
-    },
-    fullPlayBtnActive: {
-        backgroundColor: '#5a7273',
-    },
-    fullPlayText: {
-        color: '#fff',
-        fontSize: 15,
-        fontWeight: '600',
-    },
-
-    /* List */
-    listContent: {
-        paddingHorizontal: 20,
-        paddingBottom: 110,
-    },
-
-    /* Ayat card */
-    ayatCard: {
-        paddingVertical: 16,
-    },
-    ayatTopRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    ayatNumBadge: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: TEAL,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    ayatNumText: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#fff',
-    },
-    ayatActions: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    actionBtn: {
-        padding: 6,
-    },
-
-    /* Arabic */
-    arabicText: {
-        fontSize: 26,
-        color: '#1a1a1a',
-        fontFamily: 'NotoNaskhArabic',
-        textAlign: 'right',
-        writingDirection: 'rtl',
-        lineHeight: 48,
-        marginBottom: 10,
-    },
-
-    /* Latin transliteration */
-    latinText: {
-        fontSize: 13,
-        color: GOLD,
-        fontStyle: 'italic',
-        marginBottom: 6,
-        lineHeight: 20,
-    },
-
-    /* Indonesian translation */
-    idnText: {
-        fontSize: 13,
-        color: '#555',
-        lineHeight: 20,
-    },
-
-    /* Separator */
-    separator: {
-        height: 1,
-        backgroundColor: 'rgba(0,0,0,0.07)',
-    },
-
-    /* Error */
-    errorText: {
-        color: '#c0392b',
-        fontSize: 14,
-    },
-});
