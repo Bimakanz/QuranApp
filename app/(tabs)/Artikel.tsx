@@ -6,16 +6,15 @@ import {
     Image,
     Linking,
     ScrollView,
-    StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// ─────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────
+const BG = '#F5F0E8';
+const TEAL = '#728D8E';
+
 interface Article {
     title: string;
     pubDate: string;
@@ -27,9 +26,6 @@ interface Article {
     categories: string[];
 }
 
-// ─────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────
 function formatDate(pubDate: string): string {
     const d = new Date(pubDate);
     return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -41,9 +37,6 @@ function stripHtml(html: string): string {
 
 const CATEGORIES = ['Semua', 'Islam', 'Ramadhan', 'Ibadah', 'Kisah Nabi', 'Tafsir', 'Dunia'];
 
-// ─────────────────────────────────────────────────────────
-// Component
-// ─────────────────────────────────────────────────────────
 export default function Artikel() {
     const [articles, setArticles] = useState<Article[]>([]);
     const [filtered, setFiltered] = useState<Article[]>([]);
@@ -54,78 +47,55 @@ export default function Artikel() {
     useEffect(() => {
         fetch('https://api.rss2json.com/v1/api.json?rss_url=https://republika.co.id/rss/khazanah')
             .then((r) => r.json())
-            .then((data) => {
-                setArticles(data.items);
-                setFiltered(data.items);
-                setLoading(false);
-            })
-            .catch(() => {
-                setError('Gagal memuat artikel.');
-                setLoading(false);
-            });
+            .then((data) => { setArticles(data.items); setFiltered(data.items); setLoading(false); })
+            .catch(() => { setError('Gagal memuat artikel.'); setLoading(false); });
     }, []);
 
     useEffect(() => {
-        if (activeCategory === 'Semua') {
-            setFiltered(articles);
-        } else {
-            setFiltered(
-                articles.filter((a) =>
-                    a.categories.some((c) =>
-                        c.toLowerCase().includes(activeCategory.toLowerCase())
-                    )
-                )
-            );
-        }
+        if (activeCategory === 'Semua') { setFiltered(articles); return; }
+        setFiltered(articles.filter((a) => a.categories.some((c) => c.toLowerCase().includes(activeCategory.toLowerCase()))));
     }, [activeCategory, articles]);
 
-    // ── Render article card ───────────────────────────────
     const renderItem = ({ item }: { item: Article }) => {
         const imageUrl = item.enclosure?.link;
         const category = item.categories?.[0] ?? 'Islam';
         const excerpt = stripHtml(item.description).slice(0, 120) + '...';
 
         return (
-            <View style={styles.card}>
-                {/* Thumbnail */}
+            <View style={{ backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', marginBottom: 16 }}>
                 {imageUrl ? (
-                    <Image
-                        source={{ uri: imageUrl }}
-                        style={styles.cardImage}
-                        resizeMode="cover"
-                    />
+                    <Image source={{ uri: imageUrl }} style={{ width: '100%', height: 180 }} resizeMode="cover" />
                 ) : (
-                    <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
+                    <View style={{ width: '100%', height: 180, backgroundColor: '#f0f0f0', alignItems: 'center', justifyContent: 'center' }}>
                         <BookOpen size={32} color="#ccc" />
                     </View>
                 )}
 
-                {/* Content */}
-                <View style={styles.cardContent}>
-                    {/* Category + Date */}
-                    <View style={styles.metaRow}>
-                        <View style={styles.categoryBadge}>
-                            <Text style={styles.categoryText}>{category}</Text>
+                <View style={{ padding: 14 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <View style={{ backgroundColor: '#E8F0F0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
+                            <Text style={{ fontSize: 11, fontWeight: '600', color: TEAL }}>{category}</Text>
                         </View>
-                        <Text style={styles.dateText}>{formatDate(item.pubDate)}</Text>
+                        <Text style={{ fontSize: 11, color: '#999' }}>{formatDate(item.pubDate)}</Text>
                     </View>
 
-                    {/* Title */}
-                    <Text style={styles.cardTitle} numberOfLines={3}>{item.title}</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#1a1a1a', lineHeight: 22, marginBottom: 8 }} numberOfLines={3}>
+                        {item.title}
+                    </Text>
 
-                    {/* Excerpt */}
-                    <Text style={styles.cardExcerpt} numberOfLines={3}>{excerpt}</Text>
+                    <Text style={{ fontSize: 12, color: '#666', lineHeight: 18, marginBottom: 12 }} numberOfLines={3}>
+                        {excerpt}
+                    </Text>
 
-                    {/* Author + Read More */}
-                    <View style={styles.cardFooter}>
-                        <Text style={styles.authorText} numberOfLines={1}>{item.author || 'Republika'}</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 10 }}>
+                        <Text style={{ fontSize: 11, color: '#888', flex: 1 }} numberOfLines={1}>{item.author || 'Republika'}</Text>
                         <TouchableOpacity
-                            style={styles.readMoreBtn}
+                            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F0F0', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, gap: 6 }}
                             onPress={() => Linking.openURL(item.link)}
                             activeOpacity={0.7}
                         >
-                            <Text style={styles.readMoreText}>Baca Selengkapnya</Text>
-                            <ExternalLink size={12} color="#728D8E" />
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: TEAL }}>Baca Selengkapnya</Text>
+                            <ExternalLink size={12} color={TEAL} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -134,73 +104,61 @@ export default function Artikel() {
     };
 
     return (
-        <SafeAreaView style={styles.screen} edges={['top']}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: BG }} edges={['top']}>
 
-            {/* ── Header ── */}
-            <View style={styles.header}>
+            {/* Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingBottom: 4, paddingTop: 14 }}>
                 <BookOpen size={22} color="#333" />
-                <View style={styles.headerText}>
-                    <Text style={styles.headerTitle}>Artikel</Text>
-                    <Text style={styles.headerSub}>Berita dan artikel Islami terkini</Text>
+                <View>
+                    <Text style={{ fontSize: 20, fontWeight: '700', color: '#1a1a1a' }}>Artikel</Text>
+                    <Text style={{ fontSize: 12, color: '#888' }}>Berita dan artikel Islami terkini</Text>
                 </View>
             </View>
+            <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.06)', marginTop: 8 }} />
 
-            {/* ── Divider ── */}
-            <View style={styles.headerDivider} />
-
-            {/* ── Category tabs ── */}
+            {/* Category Tabs */}
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.tabsContainer}
-                style={styles.tabsScroll}
+                contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 12, alignItems: 'center', gap: 4 }}
+                style={{ flexGrow: 0 }}
             >
                 {CATEGORIES.map((cat, i) => (
                     <TouchableOpacity
                         key={cat}
                         onPress={() => setActiveCategory(cat)}
-                        style={styles.tabItem}
+                        style={{ flexDirection: 'row', alignItems: 'center' }}
                         activeOpacity={0.7}
                     >
-                        <View style={[
-                            styles.textWrapper,
-                            activeCategory === cat && styles.textWrapperActive,
-                        ]}>
-                            <Text style={[
-                                styles.tabText,
-                                activeCategory === cat && styles.tabTextActive,
-                            ]}>
-                                {cat}
-                            </Text>
+                        <View style={{ paddingHorizontal: 4, borderBottomWidth: activeCategory === cat ? 2 : 0, borderBottomColor: '#1a1a1a', paddingBottom: 2 }}>
+                            <Text style={[{ fontSize: 14, color: '#999', paddingHorizontal: 4 }, activeCategory === cat && { color: '#1a1a1a', fontWeight: '600' }]}>{cat}</Text>
                         </View>
-                        {i < CATEGORIES.length - 1 && (
-                            <Text style={styles.tabDot}>·</Text>
-                        )}
+                        {i < CATEGORIES.length - 1 && <Text style={{ color: '#ccc', marginHorizontal: 2 }}>·</Text>}
                     </TouchableOpacity>
                 ))}
             </ScrollView>
 
-            {/* ── List ── */}
-            <View style={styles.listContainer}>
+            {/* List */}
+            <View style={{ flex: 1 }}>
                 {loading ? (
-                    <View style={styles.center}>
-                        <ActivityIndicator size="large" color="#728D8E" />
-                        <Text style={styles.loadingText}>Memuat artikel...</Text>
+                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 }}>
+                        <ActivityIndicator size="large" color={TEAL} />
+                        <Text style={{ color: '#888', fontSize: 14 }}>Memuat artikel...</Text>
                     </View>
                 ) : error ? (
-                    <View style={styles.center}>
-                        <Text style={styles.errorText}>{error}</Text>
+                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                        <Text style={{ color: '#c0392b', fontSize: 14 }}>{error}</Text>
                     </View>
                 ) : filtered.length === 0 ? (
-                    <View style={styles.center}>
-                        <Text style={styles.loadingText}>Tidak ada artikel untuk kategori ini.</Text>
+                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                        <Text style={{ color: '#888', fontSize: 14 }}>Tidak ada artikel untuk kategori ini.</Text>
                     </View>
                 ) : (
                     <FlatList
                         data={filtered}
                         keyExtractor={(item) => item.guid ?? item.link}
                         renderItem={renderItem}
-                        contentContainerStyle={styles.listContent}
+                        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24, paddingTop: 8 }}
                         showsVerticalScrollIndicator={false}
                     />
                 )}
@@ -208,189 +166,3 @@ export default function Artikel() {
         </SafeAreaView>
     );
 }
-
-// ─────────────────────────────────────────────────────────
-// Styles
-// ─────────────────────────────────────────────────────────
-const BG = '#F5F0E8';
-const TEAL = '#728D8E';
-
-const styles = StyleSheet.create({
-    screen: {
-        flex: 1,
-        backgroundColor: BG,
-        paddingTop: 10,
-    },
-
-    /* Header */
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-        paddingHorizontal: 20,
-        paddingBottom: 4,
-    },
-    headerText: {},
-    headerTitle: {
-        fontSize: 22,
-        fontWeight: '700',
-        color: '#1a1a1a',
-    },
-    headerSub: {
-        fontSize: 12,
-        color: '#888',
-    },
-
-    headerDivider: {
-        height: 1,
-        backgroundColor: 'rgba(0,0,0,0.08)',
-        marginTop: 10,
-        marginHorizontal: 20,
-    },
-
-    /* Category tabs */
-    tabsScroll: {
-        flexGrow: 0,
-        marginTop: 10,
-        marginBottom: 10,
-    },
-    tabsContainer: {
-        paddingHorizontal: 15,
-        alignItems: 'center',
-        paddingBottom: 4, // mencegah border ketototng
-    },
-    tabItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginRight: 2,
-    },
-    textWrapper: {
-        paddingBottom: 8,
-        borderBottomWidth: 2,
-        borderBottomColor: 'transparent',
-    },
-    textWrapperActive: {
-        borderBottomColor: TEAL,
-    },
-    tabText: {
-        fontSize: 13,
-        color: '#888',
-        paddingHorizontal: 4,
-    },
-    tabTextActive: {
-        color: '#1a1a1a',
-        fontWeight: '600',
-    },
-    tabDot: {
-        color: '#ccc',
-        marginHorizontal: 2,
-    },
-
-    /* List */
-    listContainer: {
-        flex: 1,
-    },
-    listContent: {
-        paddingHorizontal: 20,
-        paddingBottom: 24,
-        gap: 16,
-        paddingTop: 8,
-    },
-
-    /* Card */
-    card: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 3,
-    },
-    cardImage: {
-        width: '100%',
-        height: 200,
-    },
-    cardImagePlaceholder: {
-        backgroundColor: '#eee',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    cardContent: {
-        padding: 16,
-    },
-    metaRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 10,
-    },
-    categoryBadge: {
-        backgroundColor: '#E8F0F0',
-        borderRadius: 6,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-    },
-    categoryText: {
-        fontSize: 11,
-        color: TEAL,
-        fontWeight: '600',
-    },
-    dateText: {
-        fontSize: 11,
-        color: '#aaa',
-    },
-    cardTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#1a1a1a',
-        lineHeight: 22,
-        marginBottom: 8,
-    },
-    cardExcerpt: {
-        fontSize: 12,
-        color: '#666',
-        lineHeight: 18,
-        marginBottom: 12,
-    },
-    cardFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        borderTopWidth: 1,
-        borderTopColor: '#f0f0f0',
-        paddingTop: 10,
-    },
-    authorText: {
-        fontSize: 11,
-        color: '#999',
-        flex: 1,
-    },
-    readMoreBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    readMoreText: {
-        fontSize: 12,
-        color: TEAL,
-        fontWeight: '600',
-    },
-
-    /* States */
-    center: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 10,
-    },
-    loadingText: {
-        color: '#888',
-        fontSize: 14,
-    },
-    errorText: {
-        color: '#c0392b',
-        fontSize: 14,
-    },
-});

@@ -116,9 +116,6 @@ export default function TabLayout() {
       <Tabs.Screen name="Artikel" options={{ title: 'Artikel' }} />
       <Tabs.Screen name="Pengaturan" options={{ title: 'Pengaturan' }} />
       <Tabs.Screen name="AI" options={{ title: 'AI' }} />
-      {/* Hidden legacy screens */}
-      <Tabs.Screen name="index" options={{ href: null }} />
-      <Tabs.Screen name="explore" options={{ href: null }} />
     </Tabs>
   );
 }

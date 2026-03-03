@@ -5,12 +5,16 @@ import {
     ActivityIndicator,
     Alert,
     FlatList,
-    StyleSheet,
+    Platform,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const BG = '#F5F0E8';
+const TEAL = '#32665C';
+const TEAL_LIGHT = '#728D8E';
 
 interface DzikirItem {
     type: string;
@@ -29,22 +33,17 @@ export default function Dzikir() {
     const [mainTab, setMainTab] = useState<'harian' | 'duha'>('harian');
     const [subTab, setSubTab] = useState<'semua' | 'pagi' | 'sore' | 'solat'>('semua');
 
-    // Bookmark state
     const [savedItems, setSavedItems] = useState<Set<string>>(new Set());
     const [showSaved, setShowSaved] = useState(false);
 
-    // Buat unique key untuk setiap dzikir item
     const getDzikirKey = (item: DzikirItem) => `${item.type}-${item.arab.slice(0, 30)}`;
 
     const toggleSave = (item: DzikirItem) => {
         const key = getDzikirKey(item);
         setSavedItems(prev => {
             const next = new Set(prev);
-            if (next.has(key)) {
-                next.delete(key);
-            } else {
-                next.add(key);
-            }
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
             return next;
         });
     };
@@ -52,10 +51,20 @@ export default function Dzikir() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const res = await fetch('https://muslim-api-three.vercel.app/v1/dzikir');
-                const json = await res.json();
+                const apiUrl = 'https://muslim-api-three.vercel.app/v1/dzikir';
+                let json: any;
 
-                // API mengembalikan format { status: 200, data: [...] }
+                if (Platform.OS === 'web') {
+                    // Di Web (browser), pakai proxy CORS biar tidak kena blokiran
+                    const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`);
+                    const proxyJson = await res.json();
+                    json = JSON.parse(proxyJson.contents);
+                } else {
+                    // Di Android / iOS, fetch langsung tanpa proxy
+                    const res = await fetch(apiUrl);
+                    json = await res.json();
+                }
+
                 if (json && json.data && Array.isArray(json.data)) {
                     setDzikirData(json.data);
                     setFilteredData(json.data);
@@ -66,7 +75,6 @@ export default function Dzikir() {
                     setErrorMsg("Format respons API tidak sesuai.");
                 }
             } catch (error: any) {
-                console.error(error);
                 setErrorMsg(error.message || "Gagal mengambil data dzikir.");
             } finally {
                 setLoading(false);
@@ -77,17 +85,8 @@ export default function Dzikir() {
 
     useEffect(() => {
         let result = dzikirData;
-
-        // Filter by sub tab
-        if (subTab !== 'semua') {
-            result = result.filter(d => d.type.toLowerCase() === subTab);
-        }
-
-        // Filter by saved
-        if (showSaved) {
-            result = result.filter(d => savedItems.has(getDzikirKey(d)));
-        }
-
+        if (subTab !== 'semua') result = result.filter(d => d.type.toLowerCase() === subTab);
+        if (showSaved) result = result.filter(d => savedItems.has(getDzikirKey(d)));
         setFilteredData(result);
     }, [subTab, dzikirData, showSaved, savedItems]);
 
@@ -98,16 +97,22 @@ export default function Dzikir() {
     const renderItem = ({ item, index }: { item: DzikirItem; index: number }) => {
         const displayIndex = index + 1;
         const isSaved = savedItems.has(getDzikirKey(item));
-
-        // Kapitalisasi awal untuk label tipe
         const typeLabel = item.type.charAt(0).toUpperCase() + item.type.slice(1);
 
         return (
             <TouchableOpacity
-                style={styles.card}
+                style={{
+                    backgroundColor: '#fff',
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: '#EAEBE8',
+                    padding: 16,
+                    paddingBottom: 24,
+                    marginBottom: 16,
+                }}
                 activeOpacity={0.7}
                 onPress={() => router.push({
-                    pathname: '/DetailDzikir',
+                    pathname: '/DetailDzikir' as any,
                     params: {
                         type: item.type,
                         arab: item.arab,
@@ -117,36 +122,57 @@ export default function Dzikir() {
                 })}
             >
                 {/* Header Card */}
-                <View style={styles.cardHeader}>
-                    <View style={styles.headerLeft}>
-                        <Text style={styles.dzikirNumber}>Dzikir #{displayIndex}</Text>
-                        <View style={styles.typeBadge}>
-                            <Text style={styles.typeText}>{typeLabel}</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: TEAL_LIGHT }}>
+                            Dzikir #{displayIndex}
+                        </Text>
+                        <View style={{ backgroundColor: '#E8F0F0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 }}>
+                            <Text style={{ fontSize: 11, fontWeight: '600', color: TEAL }}>{typeLabel}</Text>
                         </View>
                     </View>
-                    <View style={styles.ulangBadge}>
-                        <Text style={styles.ulangText}>{item.ulang}</Text>
+                    <View style={{ backgroundColor: '#F5F5F5', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 11, color: '#666', fontWeight: '600' }}>{item.ulang}</Text>
                     </View>
                 </View>
 
                 {/* Ayat Arab */}
-                <Text style={styles.arabText}>{item.arab}</Text>
+                <Text style={{
+                    fontFamily: 'NotoNaskhArabic',
+                    fontSize: 24,
+                    color: '#1a1a1a',
+                    textAlign: 'right',
+                    lineHeight: 44,
+                    marginBottom: 16,
+                }}>
+                    {item.arab}
+                </Text>
 
                 {/* Terjemahan Indo */}
-                <Text style={styles.indoText}>{item.indo}</Text>
+                <Text style={{ fontSize: 14, color: '#444', marginBottom: 20, lineHeight: 22 }}>
+                    {item.indo}
+                </Text>
 
                 {/* Footer Bookmark */}
-                <View style={styles.cardFooter}>
+                <View style={{ borderTopWidth: 1, borderTopColor: '#F5F5F5', paddingTop: 16, flexDirection: 'row', justifyContent: 'flex-end' }}>
                     <TouchableOpacity
-                        style={[styles.saveBtn, isSaved && styles.saveBtnActive]}
+                        style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            backgroundColor: isSaved ? TEAL : '#E8F0F0',
+                            paddingHorizontal: 16,
+                            paddingVertical: 8,
+                            borderRadius: 8,
+                            gap: 6,
+                        }}
                         onPress={() => toggleSave(item)}
                         activeOpacity={0.7}
                     >
                         {isSaved
                             ? <BookmarkCheck size={14} color="#fff" />
-                            : <Bookmark size={14} color="#728D8E" />
+                            : <Bookmark size={14} color={TEAL_LIGHT} />
                         }
-                        <Text style={[styles.saveText, isSaved && styles.saveTextActive]}>
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: isSaved ? '#fff' : TEAL_LIGHT }}>
                             {isSaved ? 'Tersimpan' : 'Simpan'}
                         </Text>
                     </TouchableOpacity>
@@ -156,69 +182,93 @@ export default function Dzikir() {
     };
 
     return (
-        <SafeAreaView style={styles.screen} edges={['top']}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: BG }} edges={['top']}>
+
             {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
-                    <ArrowLeft size={24} color="#728D8E" />
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 }}>
+                <TouchableOpacity onPress={() => router.back()} style={{ padding: 4 }}>
+                    <ArrowLeft size={24} color={TEAL_LIGHT} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>{showSaved ? 'Dzikir Tersimpan' : 'Dzikir'}</Text>
-                <TouchableOpacity
-                    style={styles.iconBtn}
-                    onPress={() => setShowSaved(!showSaved)}
-                    activeOpacity={0.7}
-                >
+                <Text style={{ fontSize: 18, fontWeight: '700', color: '#1a1a1a' }}>
+                    {showSaved ? 'Dzikir Tersimpan' : 'Dzikir'}
+                </Text>
+                <TouchableOpacity style={{ padding: 4 }} onPress={() => setShowSaved(!showSaved)} activeOpacity={0.7}>
                     <Bookmark
                         size={22}
-                        color={showSaved ? '#E2C675' : '#728D8E'}
+                        color={showSaved ? '#E2C675' : TEAL_LIGHT}
                         fill={showSaved ? '#E2C675' : 'transparent'}
                     />
                     {savedItems.size > 0 && (
-                        <View style={styles.badgeCount}>
-                            <Text style={styles.badgeCountText}>{savedItems.size}</Text>
+                        <View style={{
+                            position: 'absolute', top: -4, right: -6,
+                            backgroundColor: '#E2C675', borderRadius: 10,
+                            minWidth: 18, height: 18, justifyContent: 'center',
+                            alignItems: 'center', paddingHorizontal: 4,
+                        }}>
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>
+                                {savedItems.size}
+                            </Text>
                         </View>
                     )}
                 </TouchableOpacity>
             </View>
 
-            {/* Main Tabs (Dzikir Harian vs Duha) */}
-            <View style={styles.mainTabsContainer}>
+            {/* Main Tabs */}
+            <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderTopWidth: 1, borderColor: '#EAEBE8' }}>
                 <TouchableOpacity
-                    style={[styles.mainTab, mainTab === 'harian' && styles.mainTabActive]}
+                    style={{
+                        flex: 1, alignItems: 'center', justifyContent: 'center',
+                        paddingVertical: 14, borderBottomWidth: 2,
+                        borderBottomColor: mainTab === 'harian' ? TEAL : 'transparent',
+                        backgroundColor: mainTab === 'harian' ? '#EAEBE8' : 'transparent',
+                    }}
                     onPress={() => setMainTab('harian')}
                     activeOpacity={0.7}
                 >
-                    <Text style={[styles.mainTabText, mainTab === 'harian' && styles.mainTabTextActive]}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: mainTab === 'harian' ? TEAL : TEAL_LIGHT }}>
                         Dzikir Harian
                     </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={[styles.mainTab, mainTab === 'duha' && styles.mainTabActive]}
+                    style={{
+                        flex: 1, alignItems: 'center', justifyContent: 'center',
+                        paddingVertical: 14, borderBottomWidth: 2,
+                        borderBottomColor: mainTab === 'duha' ? TEAL : 'transparent',
+                        backgroundColor: mainTab === 'duha' ? '#EAEBE8' : 'transparent',
+                    }}
                     onPress={handleDuhaPress}
                     activeOpacity={0.7}
                 >
-                    <View style={styles.duhaTabContainer}>
-                        <Text style={[styles.mainTabText, mainTab === 'duha' && styles.mainTabTextActive]}>
+                    <View style={{ alignItems: 'center' }}>
+                        <Text style={{ fontSize: 14, fontWeight: '600', color: mainTab === 'duha' ? TEAL : TEAL_LIGHT }}>
                             Dzikir Duha
                         </Text>
-                        <View style={styles.developBadge}>
-                            <Text style={styles.developText}>DEVELOP</Text>
+                        <View style={{ backgroundColor: '#FFF2E5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4, borderWidth: 1, borderColor: '#FFDDB3' }}>
+                            <Text style={{ fontSize: 9, fontWeight: '700', color: '#E58A35' }}>DEVELOP</Text>
                         </View>
                     </View>
                 </TouchableOpacity>
             </View>
 
             {/* Sub Tabs */}
-            <View style={styles.subTabsContainer}>
-                {['semua', 'pagi', 'sore', 'solat'].map((tabStr) => (
+            <View style={{
+                flexDirection: 'row', marginHorizontal: 20, marginTop: 16, marginBottom: 16,
+                backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#EAEBE8', overflow: 'hidden',
+            }}>
+                {(['semua', 'pagi', 'sore', 'solat'] as const).map((tabStr) => (
                     <TouchableOpacity
                         key={tabStr}
-                        style={[styles.subTab, subTab === tabStr && styles.subTabActive, tabStr === 'solat' && { borderRightWidth: 0 }]}
-                        onPress={() => setSubTab(tabStr as any)}
+                        style={{
+                            flex: 1, paddingVertical: 12, alignItems: 'center',
+                            borderRightWidth: tabStr === 'solat' ? 0 : 1,
+                            borderRightColor: '#EAEBE8',
+                            backgroundColor: subTab === tabStr ? TEAL : 'transparent',
+                        }}
+                        onPress={() => setSubTab(tabStr)}
                         activeOpacity={0.7}
                     >
-                        <Text style={[styles.subTabText, subTab === tabStr && styles.subTabTextActive]}>
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: subTab === tabStr ? '#fff' : TEAL_LIGHT }}>
                             {tabStr.charAt(0).toUpperCase() + tabStr.slice(1)}
                         </Text>
                     </TouchableOpacity>
@@ -227,22 +277,24 @@ export default function Dzikir() {
 
             {/* List Content */}
             {loading ? (
-                <View style={styles.center}>
-                    <ActivityIndicator size="large" color="#728D8E" />
-                    <Text style={styles.loadingText}>Memuat dzikir...</Text>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+                    <ActivityIndicator size="large" color={TEAL_LIGHT} />
+                    <Text style={{ color: '#888', fontSize: 14 }}>Memuat dzikir...</Text>
                 </View>
             ) : errorMsg ? (
-                <View style={styles.center}>
-                    <Text style={styles.errorText}>Error: {errorMsg}</Text>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+                    <Text style={{ color: '#D32F2F', fontSize: 14, textAlign: 'center', paddingHorizontal: 20 }}>
+                        Error: {errorMsg}
+                    </Text>
                 </View>
             ) : filteredData.length === 0 ? (
-                <View style={styles.center}>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
                     <Bookmark size={48} color="#ddd" />
-                    <Text style={styles.loadingText}>
+                    <Text style={{ color: '#888', fontSize: 14 }}>
                         {showSaved ? 'Belum ada dzikir yang disimpan.' : 'Tidak ada dzikir ditemukan.'}
                     </Text>
                     {showSaved && (
-                        <Text style={styles.emptySubText}>
+                        <Text style={{ fontSize: 12, color: '#aaa', textAlign: 'center', paddingHorizontal: 40, marginTop: 4 }}>
                             Tekan tombol "Simpan" di setiap dzikir untuk menyimpannya.
                         </Text>
                     )}
@@ -252,250 +304,10 @@ export default function Dzikir() {
                     data={filteredData}
                     keyExtractor={(_, idx) => idx.toString()}
                     renderItem={renderItem}
-                    contentContainerStyle={styles.listContent}
+                    contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
                     showsVerticalScrollIndicator={false}
                 />
             )}
         </SafeAreaView>
     );
 }
-
-const BG = '#FDFBF7';
-const TEAL = '#32665C';
-const TEAL_LIGHT = '#728D8E';
-
-const styles = StyleSheet.create({
-    screen: {
-        flex: 1,
-        backgroundColor: BG,
-    },
-    center: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 12,
-    },
-    loadingText: {
-        color: '#888',
-        fontSize: 14,
-    },
-    errorText: {
-        color: '#D32F2F',
-        fontSize: 14,
-        textAlign: 'center',
-        paddingHorizontal: 20,
-    },
-
-    /* Header */
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 14,
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#1a1a1a',
-    },
-    iconBtn: {
-        padding: 4,
-    },
-
-    /* Main Tabs */
-    mainTabsContainer: {
-        flexDirection: 'row',
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderTopWidth: 1,
-        borderColor: '#EAEBE8',
-    },
-    mainTab: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 14,
-        borderBottomWidth: 2,
-        borderBottomColor: 'transparent',
-    },
-    mainTabActive: {
-        borderBottomColor: TEAL,
-        backgroundColor: '#EAEBE8',
-    },
-    mainTabText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: TEAL_LIGHT,
-    },
-    mainTabTextActive: {
-        color: TEAL,
-    },
-    duhaTabContainer: {
-        alignItems: 'center',
-    },
-    developBadge: {
-        backgroundColor: '#FFF2E5',
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 4,
-        marginTop: 4,
-        borderWidth: 1,
-        borderColor: '#FFDDB3',
-    },
-    developText: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: '#E58A35',
-    },
-
-    /* Sub Tabs */
-    subTabsContainer: {
-        flexDirection: 'row',
-        marginHorizontal: 20,
-        marginTop: 16,
-        marginBottom: 16,
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#EAEBE8',
-        overflow: 'hidden',
-    },
-    subTab: {
-        flex: 1,
-        paddingVertical: 12,
-        alignItems: 'center',
-        borderRightWidth: 1,
-        borderRightColor: '#EAEBE8',
-    },
-    subTabActive: {
-        backgroundColor: TEAL,
-    },
-    subTabText: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: TEAL_LIGHT,
-    },
-    subTabTextActive: {
-        color: '#fff',
-    },
-
-    /* List Content */
-    listContent: {
-        paddingHorizontal: 20,
-        paddingBottom: 40,
-    },
-    card: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#EAEBE8',
-        padding: 16,
-        paddingBottom: 24,
-        marginBottom: 16,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    headerLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    dzikirNumber: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: TEAL_LIGHT,
-    },
-    typeBadge: {
-        backgroundColor: '#E8F0F0',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 4,
-    },
-    typeText: {
-        fontSize: 11,
-        fontWeight: '600',
-        color: TEAL,
-    },
-    ulangBadge: {
-        backgroundColor: '#F5F5F5',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 4,
-    },
-    ulangText: {
-        fontSize: 11,
-        color: '#666',
-        fontWeight: '600',
-    },
-    arabText: {
-        fontFamily: 'NotoNaskhArabic',
-        fontSize: 24,
-        color: '#1a1a1a',
-        textAlign: 'right',
-        writingDirection: 'rtl',
-        lineHeight: 44,
-        marginBottom: 16,
-    },
-    indoText: {
-        fontSize: 14,
-        color: '#444',
-        marginBottom: 20,
-        lineHeight: 22,
-    },
-    cardFooter: {
-        borderTopWidth: 1,
-        borderTopColor: '#F5F5F5',
-        paddingTop: 16,
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-    },
-    saveBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#E8F0F0',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 8,
-        gap: 6,
-    },
-    saveBtnActive: {
-        backgroundColor: TEAL,
-    },
-    saveText: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: TEAL_LIGHT,
-    },
-    saveTextActive: {
-        color: '#fff',
-    },
-    badgeCount: {
-        position: 'absolute',
-        top: -4,
-        right: -6,
-        backgroundColor: '#E2C675',
-        borderRadius: 10,
-        minWidth: 18,
-        height: 18,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 4,
-    },
-    badgeCountText: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: '#fff',
-    },
-    emptySubText: {
-        fontSize: 12,
-        color: '#aaa',
-        textAlign: 'center',
-        paddingHorizontal: 40,
-        marginTop: 4,
-    },
-});
