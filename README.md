@@ -47,24 +47,24 @@
 ## 🖼️ Tampilan Aplikasi
 
 ### Halaman Utama
-| Beranda | Al-Quran | Artikel | Pengaturan |
+| Beranda | Pengaturan | Artikel | Al Quran |
 |:---:|:---:|:---:|:---:|
-| ![Beranda](assets/Screenshot/f327da7c-a54e-4f1c-95e2-891a6529f74a.webp) | ![Al-Quran](assets/Screenshot/978cc732-ee49-48ff-ade3-2abc3e1ba3be.webp) | ![Artikel](assets/Screenshot/d935c9ea-07f9-4d11-8aea-d9e80a96ae6c.webp) | ![Pengaturan](assets/Screenshot/85033631-73e3-43c2-a41b-d2b5ce9394b8.webp) |
+| ![Beranda](assets/Screenshot/f327da7c-a54e-4f1c-95e2-891a6529f74a.webp) | ![Pengaturan](assets/Screenshot/978cc732-ee49-48ff-ade3-2abc3e1ba3be.webp) | ![Artikel](assets/Screenshot/d935c9ea-07f9-4d11-8aea-d9e80a96ae6c.webp) | ![Al Quran](assets/Screenshot/85033631-73e3-43c2-a41b-d2b5ce9394b8.webp) |
 
 ### Fitur Islami
-| Baca Surat | Doa Harian | Detail Doa | Hadits |
+| Baca Surat | Lainnya | Detail Doa | Kalkulator Zakat |
 |:---:|:---:|:---:|:---:|
-| ![Baca Surat](assets/Screenshot/47b23fde-0b09-48d0-95e9-783a960e8451.webp) | ![Doa Harian](assets/Screenshot/6e560821-5211-4728-a09f-c0e479744873.webp) | ![Detail Doa](assets/Screenshot/16833ebd-d476-4141-a938-8436aeee7667.webp) | ![Hadits](assets/Screenshot/bd85f4a5-b2b1-404b-9fbf-cb6606ae46f6.webp) |
+| ![Baca Surat](assets/Screenshot/47b23fde-0b09-48d0-95e9-783a960e8451.webp) | ![Doa Harian](assets/Screenshot/6e560821-5211-4728-a09f-c0e479744873.webp) | ![Detail Doa](assets/Screenshot/16833ebd-d476-4141-a938-8436aeee7667.webp) | ![Kalkulator Zakat](assets/Screenshot/bd85f4a5-b2b1-404b-9fbf-cb6606ae46f6.webp) |
 
 ### Fitur Tambahan
-| Dzikir | Asmaul Husna | Kalender Hijriah | Kalkulator Zakat |
+| Dzikir | Asmaul Husna | Kalender Hijriah | Doa Harian |
 |:---:|:---:|:---:|:---:|
-| ![Dzikir](assets/Screenshot/b0a8a4c6-c0a7-487a-9473-f25cc127142a.webp) | ![Asmaul Husna](assets/Screenshot/d978486f-c9e5-4404-bc72-7e2f71c02fd4.webp) | ![Kalender](assets/Screenshot/15f6a176-9d1d-438b-94e1-d3e8c4459bec.webp) | ![Zakat](assets/Screenshot/554c9f1b-51e6-4c3d-a3fe-885ef220580f.webp) |
+| ![Dzikir](assets/Screenshot/b0a8a4c6-c0a7-487a-9473-f25cc127142a.webp) | ![Asmaul Husna](assets/Screenshot/d978486f-c9e5-4404-bc72-7e2f71c02fd4.webp) | ![Kalender](assets/Screenshot/15f6a176-9d1d-438b-94e1-d3e8c4459bec.webp) | ![Doa Harian](assets/Screenshot/554c9f1b-51e6-4c3d-a3fe-885ef220580f.webp) |
 
 ### AI & Lainnya
-| Asisten AI | Detail Hadits | Notifikasi | Lainnya |
+| Asisten AI | Detail Hadits | Notifikasi | Daftar Hadits |
 |:---:|:---:|:---:|:---:|
-| ![AI](assets/Screenshot/dfed9225-4b49-4db5-a474-d8a36cffa911.webp) | ![Detail Hadits](assets/Screenshot/185d741a-d206-4df7-9a38-9674bef69f57.webp) | ![Notifikasi](assets/Screenshot/12987906-5501-4aa6-82e0-0bef5cc0ac87.webp) | ![Lainnya](assets/Screenshot/d2e10c45-9076-4a0e-9ce2-004eaa0105de.webp) |
+| ![AI](assets/Screenshot/dfed9225-4b49-4db5-a474-d8a36cffa911.webp) | ![Detail Hadits](assets/Screenshot/185d741a-d206-4df7-9a38-9674bef69f57.webp) | ![Notifikasi](assets/Screenshot/12987906-5501-4aa6-82e0-0bef5cc0ac87.webp) | ![Daftar Hadits](assets/Screenshot/d2e10c45-9076-4a0e-9ce2-004eaa0105de.webp) |
 
 ---
 
