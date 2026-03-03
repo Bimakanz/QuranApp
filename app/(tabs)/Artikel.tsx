@@ -1,16 +1,18 @@
+import { SkeletonArticleCard } from '@/components/SkeletonLoader';
 import { BookOpen, ExternalLink } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
     FlatList,
     Image,
     Linking,
+    RefreshControl,
     ScrollView,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 const BG = '#F5F0E8';
 const TEAL = '#728D8E';
@@ -42,14 +44,20 @@ export default function Artikel() {
     const [filtered, setFiltered] = useState<Article[]>([]);
     const [activeCategory, setActiveCategory] = useState('Semua');
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState('');
 
-    useEffect(() => {
+    const fetchArticles = (isRefresh = false) => {
+        if (isRefresh) setRefreshing(true);
         fetch('https://api.rss2json.com/v1/api.json?rss_url=https://republika.co.id/rss/khazanah')
             .then((r) => r.json())
-            .then((data) => { setArticles(data.items); setFiltered(data.items); setLoading(false); })
-            .catch(() => { setError('Gagal memuat artikel.'); setLoading(false); });
-    }, []);
+            .then((data) => { setArticles(data.items); setFiltered(data.items); setError(''); setLoading(false); })
+            .catch(() => { setError('Gagal memuat artikel.'); setLoading(false); })
+            .finally(() => setRefreshing(false));
+    };
+
+    useEffect(() => { fetchArticles(); }, []);
+
 
     useEffect(() => {
         if (activeCategory === 'Semua') { setFiltered(articles); return; }
@@ -141,10 +149,13 @@ export default function Artikel() {
             {/* List */}
             <View style={{ flex: 1 }}>
                 {loading ? (
-                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 }}>
-                        <ActivityIndicator size="large" color={TEAL} />
-                        <Text style={{ color: '#888', fontSize: 14 }}>Memuat artikel...</Text>
-                    </View>
+                    <FlatList
+                        data={Array.from({ length: 4 })}
+                        keyExtractor={(_, i) => `sk-${i}`}
+                        renderItem={() => <SkeletonArticleCard />}
+                        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8 }}
+                        scrollEnabled={false}
+                    />
                 ) : error ? (
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                         <Text style={{ color: '#c0392b', fontSize: 14 }}>{error}</Text>
@@ -160,6 +171,14 @@ export default function Artikel() {
                         renderItem={renderItem}
                         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24, paddingTop: 8 }}
                         showsVerticalScrollIndicator={false}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={refreshing}
+                                onRefresh={() => fetchArticles(true)}
+                                colors={[TEAL]}
+                                tintColor={TEAL}
+                            />
+                        }
                     />
                 )}
             </View>

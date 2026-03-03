@@ -1,9 +1,11 @@
+import { SkeletonDoaItem } from '@/components/SkeletonLoader';
+import { useBookmarks } from '@/hooks/useBookmarks';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Bookmark, BookmarkCheck, Search } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
     FlatList,
+    RefreshControl,
     Text,
     TextInput,
     TouchableOpacity,
@@ -28,12 +30,13 @@ export default function DoaHarian() {
     const [filteredDoas, setFilteredDoas] = useState<Doa[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
-    const [savedItems, setSavedItems] = useState<Set<string>>(new Set());
+    const { isBookmarked, toggle: toggleSaveById, bookmarks } = useBookmarks('doa');
     const [showSaved, setShowSaved] = useState(false);
 
-    const fetchDoas = async () => {
-        setLoading(true);
+    const fetchDoas = async (isRefresh = false) => {
+        if (isRefresh) setRefreshing(true); else setLoading(true);
         try {
             const res = await fetch('https://open-api.my.id/api/doa');
             const data = await res.json();
@@ -43,12 +46,11 @@ export default function DoaHarian() {
             console.error(error);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
-    useEffect(() => {
-        fetchDoas();
-    }, []);
+    useEffect(() => { fetchDoas(); }, []);
 
     useEffect(() => {
         let result = doas;
@@ -60,22 +62,17 @@ export default function DoaHarian() {
                 doa.terjemah.toLowerCase().includes(query)
             );
         }
-        if (showSaved) result = result.filter(doa => savedItems.has(doa.id));
+        if (showSaved) result = result.filter(doa => isBookmarked(doa.id));
         setFilteredDoas(result);
-    }, [searchQuery, showSaved, doas, savedItems]);
+    }, [searchQuery, showSaved, doas, bookmarks]);
 
     const toggleSave = (id: string, e: any) => {
         e.stopPropagation();
-        setSavedItems(prev => {
-            const next = new Set(prev);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
-            return next;
-        });
+        toggleSaveById(id);
     };
 
     const renderItem = ({ item, index }: { item: Doa; index: number }) => {
-        const isSaved = savedItems.has(item.id);
+        const isSaved = isBookmarked(item.id);
         const displayIndex = index + 1;
 
         return (
@@ -106,14 +103,14 @@ export default function DoaHarian() {
                 })}
             >
                 {/* Header Card */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#1a1a1a' }}>
-                            Doa #{displayIndex}
+                <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: TEAL }} numberOfLines={1}>
+                            {item.judul}
                         </Text>
-                        <View style={{ backgroundColor: '#E8F0F0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, flexShrink: 1 }}>
-                            <Text style={{ fontSize: 11, fontWeight: '600', color: TEAL }} numberOfLines={1}>
-                                {item.judul}
+                        <View style={{ backgroundColor: '#E8F0F0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, flexShrink: 1, alignItems: 'flex-end' }}>
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: '#1a1a1a' }}>
+                                #{displayIndex}
                             </Text>
                         </View>
                     </View>
@@ -176,7 +173,7 @@ export default function DoaHarian() {
                         color={showSaved ? '#E2C675' : TEAL}
                         fill={showSaved ? '#E2C675' : 'transparent'}
                     />
-                    {savedItems.size > 0 && (
+                    {bookmarks.size > 0 && (
                         <View style={{
                             position: 'absolute', top: 2, right: 2,
                             backgroundColor: '#E2C675', borderRadius: 10,
@@ -185,7 +182,7 @@ export default function DoaHarian() {
                             borderWidth: 1.5, borderColor: '#fff',
                         }}>
                             <Text style={{ color: '#fff', fontSize: 9, fontWeight: 'bold', paddingHorizontal: 3 }}>
-                                {savedItems.size}
+                                {bookmarks.size}
                             </Text>
                         </View>
                     )}
@@ -210,10 +207,13 @@ export default function DoaHarian() {
 
             {/* List */}
             {loading ? (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
-                    <ActivityIndicator size="large" color={TEAL} />
-                    <Text style={{ color: '#888', fontSize: 14 }}>Memuat doa harian...</Text>
-                </View>
+                <FlatList
+                    data={Array.from({ length: 6 })}
+                    keyExtractor={(_, i) => `sk-${i}`}
+                    renderItem={() => <SkeletonDoaItem />}
+                    contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4 }}
+                    scrollEnabled={false}
+                />
             ) : filteredDoas.length === 0 ? (
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
                     <Text style={{ color: '#888', fontSize: 14 }}>Tidak ada doa ditemukan.</Text>
@@ -226,6 +226,14 @@ export default function DoaHarian() {
                         keyExtractor={item => item.id}
                         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
                         showsVerticalScrollIndicator={false}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={refreshing}
+                                onRefresh={() => fetchDoas(true)}
+                                colors={[TEAL]}
+                                tintColor={TEAL}
+                            />
+                        }
                     />
                 </View>
             )}

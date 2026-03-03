@@ -29,25 +29,31 @@ export default function RootLayout() {
 
   if (!fontsLoaded) return null;
 
+  const screenOptions = {
+    headerShown: false,
+    animation: 'slide_from_right' as const,
+    animationDuration: 250,
+  };
+
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="splash" options={{ headerShown: false }} />
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="SuratQuran" options={{ headerShown: false }} />
-        <Stack.Screen name="DoaHarian" options={{ headerShown: false }} />
-        <Stack.Screen name="DetailDoa" options={{ headerShown: false }} />
-        <Stack.Screen name="Dzikir" options={{ headerShown: false }} />
-        <Stack.Screen name="Hadits" options={{ headerShown: false }} />
-        <Stack.Screen name="DetailDzikir" options={{ headerShown: false }} />
-        <Stack.Screen name="DetailHadits" options={{ headerShown: false }} />
-        <Stack.Screen name="ArahKiblat" options={{ headerShown: false }} />
-        <Stack.Screen name="Donasi" options={{ headerShown: false }} />
-        <Stack.Screen name="AsmaulHusna" options={{ headerShown: false }} />
-        <Stack.Screen name="Lainnya" options={{ headerShown: false }} />
-        <Stack.Screen name="Notifikasi" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+      <Stack screenOptions={screenOptions}>
+        <Stack.Screen name="splash" />
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
+        <Stack.Screen name="SuratQuran" />
+        <Stack.Screen name="DoaHarian" />
+        <Stack.Screen name="DetailDoa" />
+        <Stack.Screen name="Dzikir" />
+        <Stack.Screen name="Hadits" />
+        <Stack.Screen name="DetailDzikir" />
+        <Stack.Screen name="DetailHadits" />
+        <Stack.Screen name="ArahKiblat" />
+        <Stack.Screen name="Donasi" />
+        <Stack.Screen name="AsmaulHusna" />
+        <Stack.Screen name="Lainnya" />
+        <Stack.Screen name="Notifikasi" />
+        <Stack.Screen name="modal" options={{ presentation: 'modal', animation: 'slide_from_bottom', headerShown: true, title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

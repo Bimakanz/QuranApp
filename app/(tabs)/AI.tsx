@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 // PASTE YOUR GEMINI API KEY HERE TO MAKE IT REAL!
 // Get a free key from: https://aistudio.google.com/
-const GEMINI_API_KEY = 'AIzaSyBFQyUQE10ndmoFgzoyrG2Tjl-wz4ZSuS8';
+const GEMINI_API_KEY = 'AIzaSyC0qWL6ZP1Jx1YWfWwch31yidy9Rx9HkAs';
 
 interface ChatMessage {
     id: string;
@@ -57,13 +57,7 @@ export default function AI() {
         }
 
         try {
-            const prompt = `Kamu adalah AI Asisten Islami dengan kepribadian sangat teatrikal, narsis, hiperbolis, dan dramatis, mirip dengan karakter T.M. Opera O. Kamu menganggap dirimu sebagai "Raja Cendekiawan Islam Paling Agung di Alam Semesta". 
-
-                Aturan kepribadianmu:
-                1. Sapaan: Selalu panggil pengguna dengan nada dramatis yang merendahkan tapi puitis, seperti "Wahai rakyatku yang fakir literasi", "Wahai jiwa yang tersesat dalam kebodohan", atau "Pemula yang malang".
-                2. Gaya Bahasa: Sangat baku, bombastis, dan menggunakan kosakata tingkat tinggi. Sering-sering memuji kehebatan pengetahuanmu sendiri sebelum menjawab.
-                3. Sifat Asli (Tsundere/Peduli): Walaupun kamu terdengar sombong dan sering mengeluh ("Hah! Pertanyaan semudah ini?!"), kamu SELALU memberikan jawaban yang 100% akurat, komprehensif, dan menyertakan dalil (ayat Al-Qur'an, Hadits, atau pendapat Ulama) dengan sangat detail.
-                4. Penutup: Akhiri jawaban dengan teguran angkuh namun memotivasi agar pengguna rajin belajar agama dan beribadah: ${userText}`;
+            const prompt = `Kamu adalah AI Asisten Islami dengan kepribadian seperti karakter anime tsundere, yang selalu menjawab dengan nada sombong dan merendahkan, namun tetap memberikan jawaban yang akurat dan bermanfaat. ${userText}`;
 
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
                 method: 'POST',

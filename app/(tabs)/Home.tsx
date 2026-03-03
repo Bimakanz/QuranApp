@@ -1,7 +1,10 @@
 ﻿import { useRouter } from 'expo-router';
 import {
-    Bell, Book, BookOpen, CloudSun, Coins, Compass, FileText, Heart,
-    LayoutGrid, MessageCircle, Moon, Search, Share2, Sun, Sunrise, Sunset
+    Bell,
+    BookOpen, BookOpenText, CloudSun,
+    Compass,
+    HandCoins, Heart,
+    LayoutGrid, MessageCircle, Moon, MoonStar, Scroll, Search, Share2, Sun, Sunrise, Sunset
 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
@@ -38,10 +41,10 @@ const MENU_ITEMS = [
     { label: 'Al-Quran', Icon: BookOpen, route: '/AlQuran' },
     { label: 'Doa Harian', Icon: MessageCircle, route: '/DoaHarian' },
     { label: 'Dzikir Duha', Icon: Heart, route: '/Dzikir' },
-    { label: 'Hadits', Icon: FileText, route: '/Hadits' },
+    { label: 'Hadits', Icon: Scroll, route: '/Hadits' },
     { label: 'Arah Kiblat', Icon: Compass, route: '/ArahKiblat' },
-    { label: 'Donasi', Icon: Coins, route: '/Donasi' },
-    { label: 'Asmaul Husna', Icon: Book, route: '/AsmaulHusna' },
+    { label: 'Donasi', Icon: HandCoins, route: '/Donasi' },
+    { label: 'Asmaul Husna', Icon: BookOpenText, route: '/AsmaulHusna' },
     { label: 'Lainnya', Icon: LayoutGrid, route: '/Lainnya' },
 ];
 
@@ -124,7 +127,7 @@ export default function Home() {
     };
 
     return (
-        <ScrollView style={{ flex: 1, backgroundColor: '#f5f5f5' }} contentContainerStyle={{ paddingBottom: 110 }}>
+        <ScrollView style={{ flex: 1, backgroundColor: '#F5F0E8' }} contentContainerStyle={{ paddingBottom: 110 }}>
 
             {/* Hero */}
             <ImageBackground
@@ -136,35 +139,45 @@ export default function Home() {
                 <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,30,50,0.52)', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }} />
 
                 <SafeAreaView style={{ paddingHorizontal: 20, paddingBottom: 20 }} edges={['top']}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    {/* Top row: date & bell */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                         <View>
-                            <Text style={{ fontSize: 16, fontWeight: '400', marginTop: 30, color: '#fff' }}>{hijriDate}</Text>
-                            <Text style={{ fontSize: 12, color: '#ccc', marginTop: 2 }}>{LOCATION}</Text>
+                            <Text style={{ fontSize: 14, fontWeight: '400', marginTop: 20, color: '#fff' }}>{hijriDate}</Text>
+                            <Text style={{ fontSize: 11, color: '#ccc', marginTop: 2 }}>{LOCATION}</Text>
                         </View>
                         <TouchableOpacity style={{ width: 38, height: 38, justifyContent: 'center', alignItems: 'center' }} activeOpacity={0.7} onPress={() => router.push('/Notifikasi')}>
                             <Bell size={22} color="#fff" />
                         </TouchableOpacity>
                     </View>
 
-                    <Text style={{ fontSize: 60, fontWeight: '500', color: '#fff', letterSpacing: 2, textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 }}>
+                    {/* Countdown to next prayer — centered */}
+                    <Text style={{ fontSize: 54, fontWeight: '500', color: '#fff', letterSpacing: 2, textAlign: 'center', marginTop: 8, textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6, fontVariant: ['tabular-nums'] }}>
                         {timeStr}
                     </Text>
-
-                    <Text style={{ fontSize: 13, color: '#ddd', textAlign: 'center', marginTop: 4, marginBottom: 16 }}>
+                    <Text style={{ fontSize: 13, color: '#ddd', textAlign: 'center', marginBottom: 20, marginTop: 4 }}>
                         {next.name} dalam{' '}
-                        <Text style={{ color: '#E2C675', fontWeight: '400' }}>{countdown}</Text>
+                        <Text style={{ color: '#E2C675', fontWeight: '600', fontVariant: ['tabular-nums'] }}>{countdown}</Text>
                     </Text>
 
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: 14 }}>
-                        {prayerTimes.map((p) => (
-                            <View key={p.name} style={{ alignItems: 'center', flex: 1 }}>
-                                <Text style={{ fontSize: 11, color: '#ccc', fontWeight: '500' }}>{p.name}</Text>
-                                <p.Icon size={18} color="#E2C675" style={{ marginVertical: 4 }} />
-                                <Text style={{ fontSize: 13, color: '#fff', fontWeight: '400', marginTop: 2 }}>{p.time}</Text>
-                            </View>
-                        ))}
+                    {/* Prayer times row */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        {prayerTimes.map((p) => {
+                            const isNext = p.name === next.name;
+                            return (
+                                <View key={p.name} style={{ alignItems: 'center', flex: 1 }}>
+                                    <Text style={{ fontSize: 11, color: isNext ? '#fff' : '#bbb', fontWeight: isNext ? '600' : '400', marginBottom: 6 }}>
+                                        {p.name}
+                                    </Text>
+                                    <p.Icon size={20} color={isNext ? '#E2C675' : '#8DA8AA'} />
+                                    <Text style={{ fontSize: isNext ? 15 : 13, color: isNext ? '#fff' : '#ccc', fontWeight: isNext ? '700' : '400', marginTop: 6, fontVariant: ['tabular-nums'] }}>
+                                        {p.time}
+                                    </Text>
+                                </View>
+                            );
+                        })}
                     </View>
                 </SafeAreaView>
+
             </ImageBackground>
 
             {/* Search Bar */}
@@ -176,26 +189,38 @@ export default function Home() {
             </View>
 
             {/* Menu Grid */}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 10, marginTop: 20, justifyContent: 'space-between' }}>
-                {MENU_ITEMS.map((menu, i) => (
-                    <TouchableOpacity
-                        key={i}
-                        style={{ width: '25%', alignItems: 'center', marginBottom: 24 }}
-                        activeOpacity={0.7}
-                        onPress={() => { if (menu.route) router.navigate(menu.route as any); }}
-                    >
-                        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#E8F0F0', justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
-                            <menu.Icon size={24} color="#E2C675" strokeWidth={2} />
-                        </View>
-                        <Text style={{ fontSize: 11, color: '#444', textAlign: 'center', fontWeight: '500' }}>{menu.label}</Text>
-                    </TouchableOpacity>
-                ))}
+            <View style={{ paddingHorizontal: 16, marginTop: 20 }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                    {MENU_ITEMS.map((menu, i) => (
+                        <TouchableOpacity
+                            key={i}
+                            style={{ width: '25%', alignItems: 'center', marginBottom: 20, paddingHorizontal: 4 }}
+                            activeOpacity={0.7}
+                            onPress={() => { if (menu.route) router.navigate(menu.route as any); }}
+                        >
+                            <View style={{
+                                width: 58, height: 58, borderRadius: 29,
+                                backgroundColor: '#E8E8E4',
+                                justifyContent: 'center', alignItems: 'center',
+                                marginBottom: 7,
+                                shadowColor: '#000',
+                                shadowOffset: { width: 0, height: 1 },
+                                shadowOpacity: 0.06,
+                                shadowRadius: 3,
+                                elevation: 1,
+                            }}>
+                                <menu.Icon size={24} color="#728D8E" fill="#BDC2BE" strokeWidth={1.8} />
+                            </View>
+                            <Text style={{ fontSize: 11, color: '#555', textAlign: 'center', fontWeight: '500', lineHeight: 15 }}>{menu.label}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
             </View>
 
             {/* Banner Ramadhan */}
             <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#8C9D97', borderRadius: 12, padding: 18, borderWidth: 2, borderColor: '#738D8E' }}>
-                    <Moon size={28} color="#F59E0B" fill="#F59E0B" />
+                    <MoonStar size={28} color="#F59E0B" fill="#F59E0B" />
                     <View style={{ marginLeft: 14 }}>
                         <Text style={{ color: '#1a1a1a', fontSize: 16, fontWeight: '700' }}>Ramadhan Mubarak!</Text>
                         <Text style={{ color: '#555', fontSize: 12, marginTop: 2 }}>Selamat menjalankan ibadah puasa</Text>

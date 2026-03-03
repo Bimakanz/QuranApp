@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { Magnetometer } from 'expo-sensors';
-import { ArrowBigUp, ArrowLeft, MapPin } from 'lucide-react-native';
+import { ArrowLeft, MapPin } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -13,13 +13,20 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 
-const TEAL = '#32665C';
-const TEAL_LIGHT = '#728D8E';
+const TEAL = '#728D8E';
+const TEAL_DARK = '#32665C';
 const BG = '#F5F0E8';
+const GOLD = '#C8A84B';
 
-const KaabaIcon = ({ size = 32 }: { size?: number }) => (
+const { width } = Dimensions.get('window');
+const COMPASS_SIZE = Math.min(width * 0.78, 300);
+const KAABA_LAT = 21.4225;
+const KAABA_LNG = 39.8262;
+
+// Kaaba SVG icon
+const KaabaIcon = ({ size = 28 }: { size?: number }) => (
     <Svg width={size} height={size} viewBox="0 0 36 36">
         <Path d="M18 0L0 5v29l18 2l18-2V5z" fill="#292F33" />
         <Path fill="#3B3F42" d="M18 36l18-2V5L18 0z" />
@@ -30,10 +37,21 @@ const KaabaIcon = ({ size = 32 }: { size?: number }) => (
     </Svg>
 );
 
-const { width } = Dimensions.get('window');
-const COMPASS_SIZE = width * 0.75;
-const KAABA_LAT = 21.4225;
-const KAABA_LNG = 39.8262;
+function calculateQibla(lat: number, lng: number): number {
+    const latR = (lat * Math.PI) / 180;
+    const lngR = (lng * Math.PI) / 180;
+    const kaabaLatR = (KAABA_LAT * Math.PI) / 180;
+    const kaabaLngR = (KAABA_LNG * Math.PI) / 180;
+    const dLng = kaabaLngR - lngR;
+    const y = Math.sin(dLng);
+    const x = Math.cos(latR) * Math.tan(kaabaLatR) - Math.sin(latR) * Math.cos(dLng);
+    return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
+function getDirectionLabel(angle: number): string {
+    const dirs = ['U', 'TL', 'T', 'TG', 'S', 'BD', 'B', 'BL'];
+    return dirs[Math.round(angle / 45) % 8];
+}
 
 export default function ArahKiblat() {
     const router = useRouter();
@@ -43,7 +61,7 @@ export default function ArahKiblat() {
     const [loading, setLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    const animatedHeading = useRef(new Animated.Value(0)).current;
+    const animCompass = useRef(new Animated.Value(0)).current;
     const lastHeading = useRef(0);
 
     useEffect(() => {
@@ -51,12 +69,13 @@ export default function ArahKiblat() {
             try {
                 const { status } = await Location.requestForegroundPermissionsAsync();
                 if (status !== 'granted') {
-                    setErrorMsg('Izin lokasi diperlukan untuk menentukan arah kiblat.');
+                    setErrorMsg('Izin lokasi diperlukan untuk menentukan arah kiblat. Aktifkan di pengaturan.');
                     setLoading(false);
                     return;
                 }
                 const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
                 const { latitude, longitude } = loc.coords;
+
                 try {
                     const [address] = await Location.reverseGeocodeAsync({ latitude, longitude });
                     if (address) {
@@ -69,8 +88,7 @@ export default function ArahKiblat() {
                 try {
                     const res = await fetch(`https://api.aladhan.com/v1/qibla/${latitude}/${longitude}`);
                     const json = await res.json();
-                    if (json.data && json.data.direction) setQiblaDirection(json.data.direction);
-                    else setQiblaDirection(calculateQibla(latitude, longitude));
+                    setQiblaDirection(json?.data?.direction ?? calculateQibla(latitude, longitude));
                 } catch { setQiblaDirection(calculateQibla(latitude, longitude)); }
 
                 setLoading(false);
@@ -82,170 +100,174 @@ export default function ArahKiblat() {
     }, []);
 
     useEffect(() => {
-        Magnetometer.setUpdateInterval(100);
+        Magnetometer.setUpdateInterval(80);
         const sub = Magnetometer.addListener((data) => {
             let angle = Math.atan2(data.y, data.x) * (180 / Math.PI);
             angle = (angle + 360) % 360;
             if (Platform.OS === 'android') angle = (360 - angle) % 360;
             setHeading(angle);
+
             let diff = angle - lastHeading.current;
             if (diff > 180) diff -= 360;
             if (diff < -180) diff += 360;
             const newVal = lastHeading.current + diff;
             lastHeading.current = newVal;
-            Animated.spring(animatedHeading, { toValue: newVal, useNativeDriver: true, friction: 10, tension: 40 }).start();
+            Animated.spring(animCompass, { toValue: newVal, useNativeDriver: true, friction: 12, tension: 50 }).start();
         });
         return () => sub.remove();
     }, []);
 
-    const calculateQibla = (lat: number, lng: number): number => {
-        const latR = (lat * Math.PI) / 180;
-        const lngR = (lng * Math.PI) / 180;
-        const kaabaLatR = (KAABA_LAT * Math.PI) / 180;
-        const kaabaLngR = (KAABA_LNG * Math.PI) / 180;
-        const dLng = kaabaLngR - lngR;
-        const y = Math.sin(dLng);
-        const x = Math.cos(latR) * Math.tan(kaabaLatR) - Math.sin(latR) * Math.cos(dLng);
-        let bearing = Math.atan2(y, x) * (180 / Math.PI);
-        return (bearing + 360) % 360;
-    };
+    const compassRotation = animCompass.interpolate({ inputRange: [-360, 360], outputRange: ['360deg', '-360deg'] });
+    const qiblaAngle = qiblaDirection !== null ? (qiblaDirection - heading + 360) % 360 : null;
 
-    const compassRotation = animatedHeading.interpolate({ inputRange: [-360, 360], outputRange: ['360deg', '-360deg'] });
-    const qiblaRotation = qiblaDirection !== null ? `${qiblaDirection}deg` : '0deg';
+    // Compass rose marks
+    const marks = Array.from({ length: 72 }, (_, i) => i);
 
-    const getDirectionLabel = (angle: number): string => {
-        const directions = ['Utara', 'Timur Laut', 'Timur', 'Tenggara', 'Selatan', 'Barat Daya', 'Barat', 'Barat Laut'];
-        return directions[Math.round(angle / 45) % 8];
-    };
-
-    const headerContent = (
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 }}>
+    const header = (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
             <TouchableOpacity onPress={() => router.back()} style={{ padding: 4 }}>
-                <ArrowLeft size={24} color={TEAL_LIGHT} />
+                <ArrowLeft size={24} color={TEAL} />
             </TouchableOpacity>
-            <Text style={{ fontSize: 18, fontWeight: '700', color: '#1a1a1a' }}>Arah Kiblat</Text>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: '#1a1a1a' }}>Arah Kiblat</Text>
             <View style={{ width: 32 }} />
         </View>
     );
 
-    if (loading) {
-        return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: BG }} edges={['top']}>
-                {headerContent}
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
-                    <ActivityIndicator size="large" color={TEAL} />
-                    <Text style={{ color: '#888', fontSize: 14 }}>Mencari lokasi Anda...</Text>
-                </View>
-            </SafeAreaView>
-        );
-    }
+    if (loading) return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: BG }} edges={['top']}>
+            {header}
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+                <ActivityIndicator size="large" color={TEAL} />
+                <Text style={{ color: '#888', fontSize: 14 }}>Mencari lokasi Anda...</Text>
+            </View>
+        </SafeAreaView>
+    );
 
-    if (errorMsg) {
-        return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: BG }} edges={['top']}>
-                {headerContent}
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                    <Text style={{ color: '#D32F2F', fontSize: 14, textAlign: 'center', paddingHorizontal: 20 }}>{errorMsg}</Text>
-                </View>
-            </SafeAreaView>
-        );
-    }
+    if (errorMsg) return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: BG }} edges={['top']}>
+            {header}
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
+                <Text style={{ color: '#c0392b', fontSize: 14, textAlign: 'center', lineHeight: 22 }}>{errorMsg}</Text>
+            </View>
+        </SafeAreaView>
+    );
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: BG }} edges={['top']}>
-            {headerContent}
+            {header}
 
-            {/* Location Info */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F0F0', marginHorizontal: 20, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, gap: 8 }}>
-                <MapPin size={16} color={TEAL} />
-                <Text style={{ fontSize: 14, color: TEAL, fontWeight: '600' }}>{locationName}</Text>
+            {/* Location badge */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F0F0', marginHorizontal: 20, marginTop: 12, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10, gap: 6, alignSelf: 'flex-start' }}>
+                <MapPin size={14} color={TEAL} />
+                <Text style={{ fontSize: 13, color: TEAL_DARK, fontWeight: '600' }}>{locationName}</Text>
             </View>
 
-            {/* Compass */}
-            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 24 }}>
-                {/* Rotating compass rose */}
-                <Animated.View style={{ width: COMPASS_SIZE, height: COMPASS_SIZE, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: compassRotation }] }}>
-                    <View style={{
-                        width: COMPASS_SIZE, height: COMPASS_SIZE, borderRadius: COMPASS_SIZE / 2,
-                        borderWidth: 3, borderColor: '#EAEBE8', backgroundColor: '#fff',
-                        alignItems: 'center', justifyContent: 'center',
-                        elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8,
-                    }}>
-                        <Text style={{ position: 'absolute', fontSize: 18, fontWeight: '800', color: '#D32F2F', top: 28 }}>U</Text>
-                        <Text style={{ position: 'absolute', fontSize: 18, fontWeight: '800', color: TEAL_LIGHT, bottom: 28 }}>S</Text>
-                        <Text style={{ position: 'absolute', fontSize: 18, fontWeight: '800', color: TEAL_LIGHT, right: 28 }}>T</Text>
-                        <Text style={{ position: 'absolute', fontSize: 18, fontWeight: '800', color: TEAL_LIGHT, left: 28 }}>B</Text>
+            {/* Compass container */}
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
 
-                        {Array.from({ length: 72 }).map((_, i) => (
-                            <View
-                                key={i}
-                                style={[
-                                    { position: 'absolute', backgroundColor: '#ccc', width: 1 },
-                                    i % 18 === 0 ? { height: 14, width: 2, backgroundColor: TEAL } :
-                                        i % 9 === 0 ? { height: 10, backgroundColor: TEAL_LIGHT } :
-                                            { height: 6 },
-                                    { transform: [{ rotate: `${i * 5}deg` }, { translateY: -(COMPASS_SIZE / 2 - 20) }] }
-                                ]}
-                            />
-                        ))}
-                    </View>
+                {/* Rotating compass rose */}
+                <Animated.View style={{ width: COMPASS_SIZE, height: COMPASS_SIZE, transform: [{ rotate: compassRotation }] }}>
+                    <Svg width={COMPASS_SIZE} height={COMPASS_SIZE} viewBox={`0 0 ${COMPASS_SIZE} ${COMPASS_SIZE}`}>
+                        {/* Outer ring */}
+                        <Circle cx={COMPASS_SIZE / 2} cy={COMPASS_SIZE / 2} r={COMPASS_SIZE / 2 - 4} fill="#fff" stroke="#E0DAD0" strokeWidth={2} />
+
+                        {/* Tick marks */}
+                        {marks.map((i) => {
+                            const angle = (i * 5 * Math.PI) / 180;
+                            const isMajor = i % 18 === 0;
+                            const isMid = i % 9 === 0;
+                            const r = COMPASS_SIZE / 2 - 10;
+                            const innerR = r - (isMajor ? 16 : isMid ? 11 : 6);
+                            const cx = COMPASS_SIZE / 2;
+                            const cy = COMPASS_SIZE / 2;
+                            return (
+                                <Line
+                                    key={i}
+                                    x1={cx + innerR * Math.sin(angle)}
+                                    y1={cy - innerR * Math.cos(angle)}
+                                    x2={cx + r * Math.sin(angle)}
+                                    y2={cy - r * Math.cos(angle)}
+                                    stroke={isMajor ? TEAL_DARK : isMid ? TEAL : '#D0CBC2'}
+                                    strokeWidth={isMajor ? 2.5 : isMid ? 1.5 : 1}
+                                />
+                            );
+                        })}
+
+                        {/* Cardinal labels */}
+                        {[
+                            { label: 'U', angle: 0, color: '#D32F2F' },
+                            { label: 'T', angle: 90, color: TEAL },
+                            { label: 'S', angle: 180, color: TEAL },
+                            { label: 'B', angle: 270, color: TEAL },
+                        ].map(({ label, angle, color }) => {
+                            const r = COMPASS_SIZE / 2 - 34;
+                            const angleRad = (angle * Math.PI) / 180;
+                            return (
+                                <SvgText
+                                    key={label}
+                                    x={COMPASS_SIZE / 2 + r * Math.sin(angleRad)}
+                                    y={COMPASS_SIZE / 2 - r * Math.cos(angleRad) + 6}
+                                    textAnchor="middle"
+                                    fontSize={17}
+                                    fontWeight="800"
+                                    fill={color}
+                                >
+                                    {label}
+                                </SvgText>
+                            );
+                        })}
+                    </Svg>
                 </Animated.View>
 
-                {/* Qibla needle — outside the rotating compass, rotates independently */}
-                {qiblaDirection !== null && (
-                    <View
-                        style={{
-                            position: 'absolute',
-                            width: COMPASS_SIZE,
-                            height: COMPASS_SIZE,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transform: [{ rotate: `${(qiblaDirection - heading + 360) % 360}deg` }],
-                        }}
-                    >
-                        {/* Needle pointing upward (toward Mecca) */}
+                {/* Qibla needle — independent rotation */}
+                {qiblaAngle !== null && (
+                    <View style={{
+                        position: 'absolute',
+                        width: COMPASS_SIZE, height: COMPASS_SIZE,
+                        alignItems: 'center', justifyContent: 'center',
+                        transform: [{ rotate: `${qiblaAngle}deg` }],
+                    }}>
+                        {/* Needle pointing up = toward Mecca */}
                         <View style={{
-                            position: 'absolute',
-                            top: 0,
+                            position: 'absolute', top: 12,
                             alignItems: 'center',
-                            height: COMPASS_SIZE / 2 - 20,
+                            height: COMPASS_SIZE / 2 - 24,
                             justifyContent: 'flex-start',
                         }}>
-                            {/* Kaaba icon at tip */}
-                            <KaabaIcon size={28} />
-                            {/* Needle line */}
-                            <View style={{ width: 3, flex: 1, backgroundColor: TEAL, borderRadius: 2, marginTop: 4 }} />
+                            <KaabaIcon size={26} />
+                            <View style={{ width: 3, flex: 1, backgroundColor: GOLD, borderRadius: 2, marginTop: 4, opacity: 0.9 }} />
                         </View>
                     </View>
                 )}
 
                 {/* Center fixed dot */}
-                <View style={{ position: 'absolute', width: 44, height: 44, borderRadius: 22, backgroundColor: '#E8F0F0', alignItems: 'center', justifyContent: 'center', elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4 }}>
-                    <ArrowBigUp size={24} color={TEAL} />
+                <View style={{ position: 'absolute', width: 48, height: 48, borderRadius: 24, backgroundColor: BG, borderWidth: 3, borderColor: '#E0DAD0', alignItems: 'center', justifyContent: 'center', elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 4 }}>
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: TEAL }} />
                 </View>
             </View>
 
-            {/* Info Panel */}
-            <View style={{ marginHorizontal: 20, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#EAEBE8', padding: 20 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' }}>
-                    <View style={{ alignItems: 'center', flex: 1 }}>
-                        <Text style={{ fontSize: 12, color: TEAL_LIGHT, fontWeight: '600', marginBottom: 4 }}>Arah Kompas</Text>
-                        <Text style={{ fontSize: 28, fontWeight: '800', color: TEAL }}>{Math.round(heading)}°</Text>
-                        <Text style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{getDirectionLabel(heading)}</Text>
-                    </View>
-                    <View style={{ width: 1, height: 50, backgroundColor: '#EAEBE8' }} />
-                    <View style={{ alignItems: 'center', flex: 1 }}>
-                        <Text style={{ fontSize: 12, color: TEAL_LIGHT, fontWeight: '600', marginBottom: 4 }}>Arah Kiblat</Text>
-                        <Text style={{ fontSize: 28, fontWeight: '800', color: TEAL }}>{qiblaDirection !== null ? `${qiblaDirection.toFixed(1)}°` : '-'}</Text>
-                        <Text style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{qiblaDirection !== null ? getDirectionLabel(qiblaDirection) : '-'}</Text>
-                    </View>
+            {/* Info cards */}
+            <View style={{ flexDirection: 'row', gap: 12, marginHorizontal: 20, marginBottom: 16 }}>
+                <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 16, padding: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2 }}>
+                    <Text style={{ fontSize: 11, color: TEAL, fontWeight: '700', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Kompas</Text>
+                    <Text style={{ fontSize: 26, fontWeight: '800', color: TEAL_DARK }}>{Math.round(heading)}°</Text>
+                    <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{getDirectionLabel(heading)}</Text>
+                </View>
+                <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 16, padding: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2 }}>
+                    <Text style={{ fontSize: 11, color: GOLD, fontWeight: '700', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Kiblat</Text>
+                    <Text style={{ fontSize: 26, fontWeight: '800', color: TEAL_DARK }}>
+                        {qiblaDirection !== null ? `${qiblaDirection.toFixed(1)}°` : '-'}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                        {qiblaDirection !== null ? getDirectionLabel(qiblaDirection) : '-'}
+                    </Text>
                 </View>
             </View>
 
-            {/* Instruction */}
-            <View style={{ marginHorizontal: 20, marginTop: 16, padding: 16, backgroundColor: '#FFF8EE', borderRadius: 12, borderWidth: 1, borderColor: '#FFEFD5' }}>
-                <Text style={{ fontSize: 13, color: '#8B7355', lineHeight: 20, textAlign: 'center' }}>
-                    Putar HP Anda hingga tanda Ka'bah berada di atas (posisi utara). Pastikan tidak ada benda logam di sekitar untuk hasil yang akurat.
+            {/* Tip */}
+            <View style={{ marginHorizontal: 20, marginBottom: 20, padding: 14, backgroundColor: '#FFF8EE', borderRadius: 12, borderWidth: 1, borderColor: '#FFEFD5' }}>
+                <Text style={{ fontSize: 12, color: '#8B7355', lineHeight: 18, textAlign: 'center' }}>
+                    Putar HP hingga ikon Ka'bah (🕋) mengarah ke atas. Jauhkan dari benda logam untuk hasil akurat.
                 </Text>
             </View>
         </SafeAreaView>

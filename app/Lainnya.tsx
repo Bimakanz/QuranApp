@@ -1,16 +1,17 @@
 import { useRouter } from 'expo-router';
 import {
     ArrowLeft,
-    Book,
     BookOpen,
+    BookOpenText,
     Calculator,
     Calendar,
     ChevronRight,
-    Coins,
     Compass,
-    FileText,
+    HandCoins,
     Heart,
+    MessageCircle,
     PlayCircle,
+    Scroll,
     Settings
 } from 'lucide-react-native';
 import React from 'react';
@@ -30,18 +31,18 @@ export default function Lainnya() {
 
     const topGridItems = [
         { label: 'Al-Quran', Icon: BookOpen, route: '/(tabs)/AlQuran' },
-        { label: 'Doa Harian', Icon: FileText, route: '/DoaHarian' },
+        { label: 'Doa Harian', Icon: MessageCircle, route: '/DoaHarian' },
         { label: 'Dzikir Duha', Icon: Heart, route: '/Dzikir' },
-        { label: 'Hadits', Icon: FileText, route: '/Hadits' },
+        { label: 'Hadits', Icon: Scroll, route: '/Hadits' },
         { label: 'Arah Kiblat', Icon: Compass, route: '/ArahKiblat' },
-        { label: 'Donasi', Icon: Coins, route: '/Donasi' },
-        { label: 'Asmaul Husna', Icon: Book, route: '/AsmaulHusna' },
+        { label: 'Donasi', Icon: HandCoins, route: '/Donasi' },
+        { label: 'Asmaul Husna', Icon: BookOpenText, route: '/AsmaulHusna' },
     ];
 
     const listItems = [
-        { title: 'Kalender Hijriah', subtitle: 'Tanggal hijriah hari ini dan info singkat', Icon: Calendar },
-        { title: 'Zakat Calculator', subtitle: 'Hitung zakat mal dengan cepat', Icon: Calculator },
-        { title: 'Kajian Online', subtitle: 'Akses kajian dari berbagai sumber', Icon: PlayCircle },
+        { title: 'Kalender Hijriah', subtitle: 'Tanggal hijriah hari ini dan info singkat', Icon: Calendar, route: '/KalenderHijrah' },
+        { title: 'Zakat Calculator', subtitle: 'Hitung zakat mal dengan cepat', Icon: Calculator, route: '/KalkulatorZakat' },
+        { title: 'Kajian Online', subtitle: 'Akses kajian dari berbagai sumber', Icon: PlayCircle, route: null },
     ];
 
     return (
@@ -93,6 +94,7 @@ export default function Lainnya() {
                                     shadowOpacity: 0.02, shadowRadius: 4, elevation: 1,
                                 }}
                                 activeOpacity={0.7}
+                                onPress={() => item.route ? router.push(item.route as any) : null}
                             >
                                 <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center', marginRight: 16 }}>
                                     <item.Icon size={22} color={TEAL} />

@@ -1,16 +1,21 @@
+import { SkeletonCard } from '@/components/SkeletonLoader';
+import { useBookmarks } from '@/hooks/useBookmarks';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Bookmark, BookmarkCheck, Search } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
+    RefreshControl,
     ScrollView,
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+
 
 interface HadithItem {
     number: number;
@@ -27,7 +32,8 @@ interface BookInfo {
 const API_BASE = 'https://api.hadith.gading.dev';
 const TEAL = '#32665C';
 const TEAL_LIGHT = '#728D8E';
-const BG = '#FDFBF7';
+const BG = '#F5F0E8';
+
 
 const BOOKS: BookInfo[] = [
     { name: 'Bukhari', id: 'bukhari', available: 6638 },
@@ -50,23 +56,20 @@ export default function Hadits() {
     const [hadiths, setHadiths] = useState<HadithItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [savedItems, setSavedItems] = useState<Set<string>>(new Set());
     const [showSaved, setShowSaved] = useState(false);
 
+    const { isBookmarked, toggle: toggleSaveById, bookmarks } = useBookmarks('hadits');
     const getHadithKey = (item: HadithItem) => `${activeBook.id}-${item.number}`;
 
     const toggleSave = (item: HadithItem) => {
-        const key = getHadithKey(item);
-        setSavedItems(prev => {
-            const next = new Set(prev);
-            if (next.has(key)) next.delete(key); else next.add(key);
-            return next;
-        });
+        toggleSaveById(getHadithKey(item));
     };
+
 
     const fetchHadiths = async (bookId: string, pageNum: number, append = false) => {
         if (pageNum === 1) setLoading(true); else setLoadingMore(true);
@@ -110,7 +113,7 @@ export default function Hadits() {
             const q = searchQuery.toLowerCase();
             result = result.filter(h => h.id.toLowerCase().includes(q) || h.arab.includes(searchQuery) || String(h.number).includes(q));
         }
-        if (showSaved) result = result.filter(h => savedItems.has(getHadithKey(h)));
+        if (showSaved) result = result.filter(h => isBookmarked(getHadithKey(h)));
         return result;
     };
 
@@ -124,7 +127,7 @@ export default function Hadits() {
     };
 
     const renderItem = ({ item }: { item: HadithItem }) => {
-        const isSaved = savedItems.has(getHadithKey(item));
+        const isSaved = isBookmarked(getHadithKey(item));
         const arabPreview = item.arab.length > 120 ? item.arab.slice(0, 120) + '...' : item.arab;
         const terjemahPreview = item.id.length > 100 ? item.id.slice(0, 100) + '...' : item.id;
 
@@ -190,9 +193,9 @@ export default function Hadits() {
                 </Text>
                 <TouchableOpacity style={{ padding: 4 }} onPress={() => setShowSaved(!showSaved)} activeOpacity={0.7}>
                     <Bookmark size={22} color={showSaved ? '#E2C675' : TEAL_LIGHT} fill={showSaved ? '#E2C675' : 'transparent'} />
-                    {savedItems.size > 0 && (
+                    {bookmarks.size > 0 && (
                         <View style={{ position: 'absolute', top: -4, right: -6, backgroundColor: '#E2C675', borderRadius: 10, minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 }}>
-                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>{savedItems.size}</Text>
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>{bookmarks.size}</Text>
                         </View>
                     )}
                 </TouchableOpacity>
@@ -233,10 +236,13 @@ export default function Hadits() {
 
             {/* List */}
             {loading ? (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
-                    <ActivityIndicator size="large" color={TEAL_LIGHT} />
-                    <Text style={{ color: '#888', fontSize: 14 }}>Memuat hadits {activeBook.name}...</Text>
-                </View>
+                <FlatList
+                    data={Array.from({ length: 5 })}
+                    keyExtractor={(_, i) => `sk-${i}`}
+                    renderItem={() => <SkeletonCard lines={3} />}
+                    contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4 }}
+                    scrollEnabled={false}
+                />
             ) : errorMsg ? (
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <Text style={{ color: '#D32F2F', fontSize: 14, textAlign: 'center', paddingHorizontal: 20 }}>{errorMsg}</Text>
@@ -263,6 +269,14 @@ export default function Hadits() {
                     onEndReached={loadMore}
                     onEndReachedThreshold={0.5}
                     ListFooterComponent={renderFooter}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={() => { setPage(1); setHadiths([]); fetchHadiths(activeBook.id, 1); }}
+                            colors={[TEAL]}
+                            tintColor={TEAL}
+                        />
+                    }
                 />
             )}
         </SafeAreaView>

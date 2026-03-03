@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, Bookmark, BookmarkCheck } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
     Alert,
     FlatList,
     Platform,
@@ -11,6 +10,8 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SkeletonCard } from '../components/SkeletonLoader';
+import { useBookmarks } from '../hooks/useBookmarks';
 
 const BG = '#F5F0E8';
 const TEAL = '#32665C';
@@ -33,20 +34,11 @@ export default function Dzikir() {
     const [mainTab, setMainTab] = useState<'harian' | 'duha'>('harian');
     const [subTab, setSubTab] = useState<'semua' | 'pagi' | 'sore' | 'solat'>('semua');
 
-    const [savedItems, setSavedItems] = useState<Set<string>>(new Set());
+    const { bookmarks: savedItems, toggle: toggleSave, loaded: bookmarksLoaded } = useBookmarks('dzikir');
     const [showSaved, setShowSaved] = useState(false);
 
     const getDzikirKey = (item: DzikirItem) => `${item.type}-${item.arab.slice(0, 30)}`;
 
-    const toggleSave = (item: DzikirItem) => {
-        const key = getDzikirKey(item);
-        setSavedItems(prev => {
-            const next = new Set(prev);
-            if (next.has(key)) next.delete(key);
-            else next.add(key);
-            return next;
-        });
-    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -84,11 +76,12 @@ export default function Dzikir() {
     }, []);
 
     useEffect(() => {
+        if (!bookmarksLoaded) return;
         let result = dzikirData;
         if (subTab !== 'semua') result = result.filter(d => d.type.toLowerCase() === subTab);
         if (showSaved) result = result.filter(d => savedItems.has(getDzikirKey(d)));
         setFilteredData(result);
-    }, [subTab, dzikirData, showSaved, savedItems]);
+    }, [subTab, dzikirData, showSaved, savedItems, bookmarksLoaded]);
 
     const handleDuhaPress = () => {
         Alert.alert("Informasi", "Fitur Dzikir Duha masih dalam tahap pengembangan (Develop).");
@@ -165,7 +158,7 @@ export default function Dzikir() {
                             borderRadius: 8,
                             gap: 6,
                         }}
-                        onPress={() => toggleSave(item)}
+                        onPress={(e) => { e.stopPropagation?.(); toggleSave(getDzikirKey(item)); }}
                         activeOpacity={0.7}
                     >
                         {isSaved
@@ -242,7 +235,7 @@ export default function Dzikir() {
                 >
                     <View style={{ alignItems: 'center' }}>
                         <Text style={{ fontSize: 14, fontWeight: '600', color: mainTab === 'duha' ? TEAL : TEAL_LIGHT }}>
-                            Dzikir Duha
+                            Dzikir
                         </Text>
                         <View style={{ backgroundColor: '#FFF2E5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4, borderWidth: 1, borderColor: '#FFDDB3' }}>
                             <Text style={{ fontSize: 9, fontWeight: '700', color: '#E58A35' }}>DEVELOP</Text>
@@ -277,9 +270,12 @@ export default function Dzikir() {
 
             {/* List Content */}
             {loading ? (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
-                    <ActivityIndicator size="large" color={TEAL_LIGHT} />
-                    <Text style={{ color: '#888', fontSize: 14 }}>Memuat dzikir...</Text>
+                <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+                    {Array.from({ length: 4 }).map((_, idx) => (
+                        <View key={idx} style={{ marginBottom: 16 }}>
+                            <SkeletonCard lines={4} />
+                        </View>
+                    ))}
                 </View>
             ) : errorMsg ? (
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>

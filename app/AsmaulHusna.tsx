@@ -2,14 +2,14 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, RefreshCw, Search } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
     FlatList,
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SkeletonAsmaulCard } from '../components/SkeletonLoader';
 
 const TEAL = '#32665C';
 const BG = '#F5F0E8';
@@ -114,8 +114,14 @@ export default function AsmaulHusna() {
 
             {/* Content */}
             {loading ? (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                    <ActivityIndicator size="large" color={TEAL} />
+                <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+                    {Array.from({ length: 5 }).map((_, rowIdx) => (
+                        <View key={rowIdx} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                            {Array.from({ length: 3 }).map((_, colIdx) => (
+                                <SkeletonAsmaulCard key={colIdx} />
+                            ))}
+                        </View>
+                    ))}
                 </View>
             ) : errorMsg ? (
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>

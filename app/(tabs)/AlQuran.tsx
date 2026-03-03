@@ -1,10 +1,11 @@
+import { SkeletonSurahItem } from '@/components/SkeletonLoader';
 import { useRouter } from 'expo-router';
 import { Bookmark, BookOpen, Search, Settings } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
     FlatList,
     Image,
+    RefreshControl,
     Text,
     TextInput,
     TouchableOpacity,
@@ -30,14 +31,19 @@ export default function AlQuran() {
     const [filtered, setFiltered] = useState<Surah[]>([]);
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState('');
 
-    useEffect(() => {
+    const fetchSurahs = (isRefresh = false) => {
+        if (isRefresh) setRefreshing(true);
         fetch('https://quran-api.santrikoding.com/api/surah')
             .then((r) => r.json())
-            .then((data: Surah[]) => { setSurahs(data); setFiltered(data); setLoading(false); })
-            .catch(() => { setError('Gagal memuat data. Coba lagi.'); setLoading(false); });
-    }, []);
+            .then((data: Surah[]) => { setSurahs(data); setFiltered(data); setError(''); setLoading(false); })
+            .catch(() => { setError('Gagal memuat data. Coba lagi.'); setLoading(false); })
+            .finally(() => setRefreshing(false));
+    };
+
+    useEffect(() => { fetchSurahs(); }, []);
 
     useEffect(() => {
         const q = search.toLowerCase();
@@ -109,10 +115,16 @@ export default function AlQuran() {
 
             {/* List */}
             {loading ? (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
-                    <ActivityIndicator size="large" color={GOLD} />
-                    <Text style={{ color: '#888', fontSize: 14 }}>Memuat surah...</Text>
-                </View>
+                <FlatList
+                    data={Array.from({ length: 10 })}
+                    keyExtractor={(_, i) => `sk-${i}`}
+                    renderItem={() => <>
+                        <SkeletonSurahItem />
+                        <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.06)' }} />
+                    </>}
+                    contentContainerStyle={{ paddingHorizontal: 20 }}
+                    scrollEnabled={false}
+                />
             ) : error ? (
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <Text style={{ color: '#c0392b', fontSize: 14 }}>{error}</Text>
@@ -125,6 +137,14 @@ export default function AlQuran() {
                     ItemSeparatorComponent={Separator}
                     contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
                     showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={() => fetchSurahs(true)}
+                            colors={['#C8A84B']}
+                            tintColor="#C8A84B"
+                        />
+                    }
                 />
             )}
         </SafeAreaView>
