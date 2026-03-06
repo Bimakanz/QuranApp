@@ -13,7 +13,6 @@
   <img src="https://img.shields.io/badge/React_Native-Expo-blue?logo=expo&logoColor=white" />
   <img src="https://img.shields.io/badge/Platform-Android%20%7C%20iOS-green" />
   <img src="https://img.shields.io/badge/Version-1.0.0-orange" />
-  <img src="https://img.shields.io/badge/License-MIT-yellow" />
 </p>
 
 ---
